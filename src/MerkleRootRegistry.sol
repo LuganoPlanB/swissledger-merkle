@@ -8,13 +8,38 @@ contract MerkleRootRegistry {
         3618502788666131213697322783095070105623107215331596699973092056135872020481;
 
     error ZeroRoot();
+    error Unauthorized();
+    error InvalidOwner();
 
     event ActiveRootUpdated(bytes32 indexed previousRoot, bytes32 indexed newRoot, address indexed updater);
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 
     bytes32 public activeRoot;
+    address public owner;
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+        emit OwnershipTransferred(address(0), msg.sender);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) {
+            revert InvalidOwner();
+        }
+        address oldOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
 
     /// @notice Replaces the current Merkle root with the latest off-chain state snapshot.
-    function setActiveRoot(bytes32 newRoot) external {
+    function setActiveRoot(bytes32 newRoot) external onlyOwner {
         if (newRoot == bytes32(0)) {
             revert ZeroRoot();
         }
