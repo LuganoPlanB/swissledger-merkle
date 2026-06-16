@@ -4,6 +4,15 @@ pragma solidity ^0.8.30;
 import {BuildInfo} from "../src/generated/BuildInfo.sol";
 import {MerkleRootRegistry} from "../src/MerkleRootRegistry.sol";
 
+contract UnauthorizedCaller {
+    function trySetRoot(MerkleRootRegistry registry, bytes32 root) external returns (bool) {
+        (bool ok, ) = address(registry).call(
+            abi.encodeCall(MerkleRootRegistry.setActiveRoot, (root))
+        );
+        return ok;
+    }
+}
+
 contract MerkleRootRegistryTest {
     uint256 private constant FIELD_PRIME =
         3618502788666131213697322783095070105623107215331596699973092056135872020481;
@@ -17,6 +26,16 @@ contract MerkleRootRegistryTest {
         require(registry.activeRoot() == root, "active root not updated");
     }
 
+    function testRejectUnauthorizedSetActiveRoot() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x0354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6863));
+
+        UnauthorizedCaller caller = new UnauthorizedCaller();
+        bool ok = caller.trySetRoot(registry, root);
+
+        require(!ok, "unauthorized root update accepted");
+    }
+
     function testVersion() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
 
@@ -25,7 +44,6 @@ contract MerkleRootRegistryTest {
             "unexpected registry version"
         );
     }
-
     function testRejectZeroRoot() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
 
