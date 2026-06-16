@@ -4,6 +4,9 @@ pragma solidity ^0.8.30;
 import {StrkMerkleProof} from "./StrkMerkleProof.sol";
 
 contract MerkleRootRegistry {
+    uint256 private constant FIELD_PRIME =
+        3618502788666131213697322783095070105623107215331596699973092056135872020481;
+
     error ZeroRoot();
 
     event RootNotarized(bytes32 indexed root, address indexed notarizer);
@@ -26,9 +29,17 @@ contract MerkleRootRegistry {
             return false;
         }
 
+        if (!_isValidFelt(uint256(root)) || !_isValidFelt(uint256(leafHash))) {
+            return false;
+        }
+
         uint256[] memory feltProof = new uint256[](proof.length);
         for (uint256 index = 0; index < proof.length; index++) {
-            feltProof[index] = uint256(proof[index]);
+            uint256 proofValue = uint256(proof[index]);
+            if (!_isValidFelt(proofValue)) {
+                return false;
+            }
+            feltProof[index] = proofValue;
         }
 
         return StrkMerkleProof.verify(uint256(root), uint256(leafHash), feltProof);
@@ -45,14 +56,26 @@ contract MerkleRootRegistry {
             return false;
         }
 
+        if (!_isValidFelt(uint256(root))) {
+            return false;
+        }
+
         uint256[] memory feltLeaves = new uint256[](leafHashes.length);
         for (uint256 index = 0; index < leafHashes.length; index++) {
-            feltLeaves[index] = uint256(leafHashes[index]);
+            uint256 leafValue = uint256(leafHashes[index]);
+            if (!_isValidFelt(leafValue)) {
+                return false;
+            }
+            feltLeaves[index] = leafValue;
         }
 
         uint256[] memory feltProof = new uint256[](proof.length);
         for (uint256 index = 0; index < proof.length; index++) {
-            feltProof[index] = uint256(proof[index]);
+            uint256 proofValue = uint256(proof[index]);
+            if (!_isValidFelt(proofValue)) {
+                return false;
+            }
+            feltProof[index] = proofValue;
         }
 
         bool[] memory proofFlagsCopy = new bool[](proofFlags.length);
@@ -61,5 +84,9 @@ contract MerkleRootRegistry {
         }
 
         return StrkMerkleProof.verifyMultiProof(uint256(root), feltLeaves, feltProof, proofFlagsCopy);
+    }
+
+    function _isValidFelt(uint256 value) private pure returns (bool) {
+        return value < FIELD_PRIME;
     }
 }

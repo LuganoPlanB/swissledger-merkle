@@ -4,6 +4,9 @@ pragma solidity ^0.8.30;
 import {MerkleRootRegistry} from "../src/MerkleRootRegistry.sol";
 
 contract MerkleRootRegistryTest {
+    uint256 private constant FIELD_PRIME =
+        3618502788666131213697322783095070105623107215331596699973092056135872020481;
+
     function testNotarizeRoot() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x0354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6863));
@@ -109,6 +112,36 @@ contract MerkleRootRegistryTest {
         require(!registry.contains(root, leafHash, proof), "invalid proof accepted");
     }
 
+    function testContainsReturnsFalseForOutOfFieldLeafHash() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32 leafHash = bytes32(FIELD_PRIME);
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = bytes32(
+            uint256(0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3)
+        );
+        proof[1] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
+
+        registry.notarizeRoot(root);
+
+        require(!registry.contains(root, leafHash, proof), "out-of-field leaf hash accepted");
+    }
+
+    function testContainsReturnsFalseForOutOfFieldProofElement() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32 leafHash = bytes32(
+            uint256(0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9)
+        );
+        bytes32[] memory proof = new bytes32[](2);
+        proof[0] = bytes32(FIELD_PRIME);
+        proof[1] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
+
+        registry.notarizeRoot(root);
+
+        require(!registry.contains(root, leafHash, proof), "out-of-field proof accepted");
+    }
+
     function testContainsManyReturnsTrueForValidNotarizedMultiproof() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
@@ -177,5 +210,49 @@ contract MerkleRootRegistryTest {
         registry.notarizeRoot(root);
 
         require(!registry.containsMany(root, leafHashes, proof, proofFlags), "malformed flags accepted");
+    }
+
+    function testContainsManyReturnsFalseForOutOfFieldLeafHash() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32[] memory leafHashes = new bytes32[](2);
+        leafHashes[0] = bytes32(FIELD_PRIME);
+        leafHashes[1] = bytes32(
+            uint256(0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3)
+        );
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
+
+        bool[] memory proofFlags = new bool[](2);
+        proofFlags[0] = true;
+        proofFlags[1] = false;
+
+        registry.notarizeRoot(root);
+
+        require(!registry.containsMany(root, leafHashes, proof, proofFlags), "out-of-field multiproof leaf accepted");
+    }
+
+    function testContainsManyReturnsFalseForOutOfFieldProofElement() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32[] memory leafHashes = new bytes32[](2);
+        leafHashes[0] = bytes32(
+            uint256(0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9)
+        );
+        leafHashes[1] = bytes32(
+            uint256(0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3)
+        );
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = bytes32(FIELD_PRIME);
+
+        bool[] memory proofFlags = new bool[](2);
+        proofFlags[0] = true;
+        proofFlags[1] = false;
+
+        registry.notarizeRoot(root);
+
+        require(!registry.containsMany(root, leafHashes, proof, proofFlags), "out-of-field multiproof proof accepted");
     }
 }

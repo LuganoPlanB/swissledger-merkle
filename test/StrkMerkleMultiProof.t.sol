@@ -59,6 +59,23 @@ contract StrkMerkleMultiProofTest {
         );
     }
 
+    function testRejectQueueUnderflowMultiproofFormat() external pure {
+        uint256 root = 0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d;
+        uint256[] memory leaves = new uint256[](1);
+        leaves[0] = 0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9;
+
+        uint256[] memory proof = new uint256[](1);
+        proof[0] = 0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8;
+
+        bool[] memory proofFlags = new bool[](1);
+        proofFlags[0] = true;
+
+        require(
+            !StrkMerkleProof.verifyMultiProof(root, leaves, proof, proofFlags),
+            "queue underflow multiproof accepted"
+        );
+    }
+
     function testVerifyEmptySelectionMultiproof() external pure {
         uint256 root = 0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d;
         uint256[] memory leaves = new uint256[](0);

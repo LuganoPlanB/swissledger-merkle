@@ -26,11 +26,12 @@ library StrkMerkleProof {
         uint256[] memory proof,
         bool[] memory proofFlags
     ) internal pure returns (uint256) {
-        if (!_isValidMultiProofFormat(leaves.length, proof.length, proofFlags)) {
+        (bool ok, uint256 rebuiltRoot) = _tryProcessMultiProof(leaves, proof, proofFlags);
+        if (!ok) {
             revert("Invalid multiproof format");
         }
 
-        return _processMultiProof(leaves, proof, proofFlags);
+        return rebuiltRoot;
     }
 
     /// @notice Checks whether a set of leaf hashes is included in the root under strk-merkle-tree semantics.
@@ -40,41 +41,78 @@ library StrkMerkleProof {
         uint256[] memory proof,
         bool[] memory proofFlags
     ) internal pure returns (bool) {
-        if (!_isValidMultiProofFormat(leaves.length, proof.length, proofFlags)) {
+        (bool ok, uint256 rebuiltRoot) = _tryProcessMultiProof(leaves, proof, proofFlags);
+        if (!ok) {
             return false;
         }
 
-        return _processMultiProof(leaves, proof, proofFlags) == root;
+        return rebuiltRoot == root;
     }
 
-    /// @dev Mirrors the library's queue-based multiproof processing.
-    function _processMultiProof(
+    /// @dev Mirrors the library's queue-based multiproof processing and rejects queue underflow.
+    function _tryProcessMultiProof(
         uint256[] memory leaves,
         uint256[] memory proof,
         bool[] memory proofFlags
-    ) private pure returns (uint256) {
+    ) private pure returns (bool, uint256) {
         uint256 leavesLength = leaves.length;
         uint256 totalHashes = proofFlags.length;
 
+        if (!_isValidMultiProofFormat(leavesLength, proof.length, proofFlags)) {
+            return (false, 0);
+        }
+
         if (totalHashes == 0) {
-            return leavesLength > 0 ? leaves[0] : proof[0];
+            return (true, leavesLength > 0 ? leaves[0] : proof[0]);
         }
 
         uint256[] memory hashes = new uint256[](totalHashes);
         uint256 leafPos = 0;
         uint256 hashPos = 0;
+        uint256 hashesLength = 0;
         uint256 proofPos = 0;
 
         for (uint256 index = 0; index < totalHashes; index++) {
-            uint256 a = leafPos < leavesLength ? leaves[leafPos++] : hashes[hashPos++];
-            uint256 b = proofFlags[index]
-                ? (leafPos < leavesLength ? leaves[leafPos++] : hashes[hashPos++])
-                : proof[proofPos++];
+            (bool hasA, uint256 a) = _consumeQueueValue(leaves, leavesLength, leafPos, hashes, hashPos, hashesLength);
+            if (!hasA) {
+                return (false, 0);
+            }
+            if (leafPos < leavesLength) {
+                leafPos += 1;
+            } else {
+                hashPos += 1;
+            }
+
+            uint256 b;
+            if (proofFlags[index]) {
+                (bool hasB, uint256 queueValue) =
+                    _consumeQueueValue(leaves, leavesLength, leafPos, hashes, hashPos, hashesLength);
+                if (!hasB) {
+                    return (false, 0);
+                }
+                b = queueValue;
+
+                if (leafPos < leavesLength) {
+                    leafPos += 1;
+                } else {
+                    hashPos += 1;
+                }
+            } else {
+                if (proofPos >= proof.length) {
+                    return (false, 0);
+                }
+                b = proof[proofPos++];
+            }
 
             hashes[index] = _hashSortedPair(a, b);
+            hashesLength += 1;
         }
 
-        return hashes[totalHashes - 1];
+        if (proofPos != proof.length) {
+            return (false, 0);
+        }
+
+        return (true, hashes[totalHashes - 1]);
     }
 
     /// @dev A well-formed multiproof must satisfy the same length invariants as strk-merkle-tree.
@@ -103,5 +141,22 @@ library StrkMerkleProof {
         return left <= right
             ? StarknetPedersen.hashPair(left, right)
             : StarknetPedersen.hashPair(right, left);
+    }
+
+    function _consumeQueueValue(
+        uint256[] memory leaves,
+        uint256 leavesLength,
+        uint256 leafPos,
+        uint256[] memory hashes,
+        uint256 hashPos,
+        uint256 hashesLength
+    ) private pure returns (bool, uint256) {
+        if (leafPos < leavesLength) {
+            return (true, leaves[leafPos]);
+        }
+        if (hashPos < hashesLength) {
+            return (true, hashes[hashPos]);
+        }
+        return (false, 0);
     }
 }
