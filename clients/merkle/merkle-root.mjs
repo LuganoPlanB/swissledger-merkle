@@ -1,4 +1,11 @@
-import { getPositionalArgs, printJson, wantsHelp, failUsage } from "./lib/cli.mjs";
+import {
+  getPositionalArgs,
+  printJson,
+  readJsonFile,
+  wantsHelp,
+  failUsage,
+} from "./lib/cli.mjs";
+import { buildRootResponse } from "./lib/root-command.mjs";
 
 const usage = `Usage: npm run merkle:root -- <request.json>
 
@@ -23,7 +30,5 @@ if (!requestPath) {
   failUsage("Missing request path.", usage);
 }
 
-failUsage(
-  `Root generation is not implemented yet. Received request path: ${requestPath}`,
-  usage,
-);
+const request = readJsonFile(requestPath);
+printJson(buildRootResponse(request, requestPath));
