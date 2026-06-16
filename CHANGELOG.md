@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.1.0...v1.2.0) (2026-06-16)
+
+
+### Features
+
+* **merkle:** allow multiple root updaters ([f49217c](https://github.com/LuganoPlanB/swissledger-merkle/commit/f49217cd3822ce6af36af2e1fbcd2494ba479bb9))
+
 # [1.1.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.0.1...v1.1.0) (2026-06-16)
 
 
