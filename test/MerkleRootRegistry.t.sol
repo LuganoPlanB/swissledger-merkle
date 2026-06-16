@@ -11,6 +11,31 @@ contract UnauthorizedCaller {
         );
         return ok;
     }
+
+    function tryAddRootUpdater(MerkleRootRegistry registry, address updater) external returns (bool) {
+        (bool ok, ) = address(registry).call(
+            abi.encodeCall(MerkleRootRegistry.addRootUpdater, (updater))
+        );
+        return ok;
+    }
+
+    function tryRemoveRootUpdater(MerkleRootRegistry registry, address updater) external returns (bool) {
+        (bool ok, ) = address(registry).call(
+            abi.encodeCall(MerkleRootRegistry.removeRootUpdater, (updater))
+        );
+        return ok;
+    }
+
+    function tryTransferOwnership(MerkleRootRegistry registry, address newOwner) external returns (bool) {
+        (bool ok, ) = address(registry).call(
+            abi.encodeCall(MerkleRootRegistry.transferOwnership, (newOwner))
+        );
+        return ok;
+    }
+
+    function setRoot(MerkleRootRegistry registry, bytes32 root) external {
+        registry.setActiveRoot(root);
+    }
 }
 
 contract MerkleRootRegistryTest {
@@ -26,6 +51,16 @@ contract MerkleRootRegistryTest {
         require(registry.activeRoot() == root, "active root not updated");
     }
 
+    function testOwnerStartsAsRootUpdater() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+
+        require(registry.isRootUpdater(address(this)), "owner not root updater");
+
+        address[] memory updaters = registry.getRootUpdaters();
+        require(updaters.length == 1, "unexpected updater count");
+        require(updaters[0] == address(this), "unexpected initial updater");
+    }
+
     function testRejectUnauthorizedSetActiveRoot() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x0354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6863));
@@ -34,6 +69,56 @@ contract MerkleRootRegistryTest {
         bool ok = caller.trySetRoot(registry, root);
 
         require(!ok, "unauthorized root update accepted");
+    }
+
+    function testRejectUnauthorizedAddRootUpdater() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        UnauthorizedCaller caller = new UnauthorizedCaller();
+
+        bool ok = caller.tryAddRootUpdater(registry, address(caller));
+
+        require(!ok, "unauthorized updater add accepted");
+    }
+
+    function testAddRootUpdaterAllowsRootRotation() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        UnauthorizedCaller caller = new UnauthorizedCaller();
+        bytes32 root = bytes32(uint256(0x0354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6863));
+
+        registry.addRootUpdater(address(caller));
+        caller.setRoot(registry, root);
+
+        require(registry.activeRoot() == root, "updater could not rotate root");
+        require(registry.isRootUpdater(address(caller)), "updater not recorded");
+
+        address[] memory updaters = registry.getRootUpdaters();
+        require(updaters.length == 2, "updater list not extended");
+    }
+
+    function testRemoveRootUpdaterRevokesRootRotation() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        UnauthorizedCaller caller = new UnauthorizedCaller();
+        bytes32 root = bytes32(uint256(0x0354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6863));
+
+        registry.addRootUpdater(address(caller));
+        registry.removeRootUpdater(address(caller));
+
+        bool ok = caller.trySetRoot(registry, root);
+
+        require(!ok, "removed updater still rotates root");
+        require(!registry.isRootUpdater(address(caller)), "updater still recorded");
+        require(registry.getRootUpdaters().length == 1, "updater list not shrunk");
+    }
+
+    function testTransferOwnershipMovesUpdaterPermission() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        UnauthorizedCaller caller = new UnauthorizedCaller();
+
+        registry.transferOwnership(address(caller));
+
+        require(registry.owner() == address(caller), "owner not transferred");
+        require(!registry.isRootUpdater(address(this)), "old owner still updater");
+        require(registry.isRootUpdater(address(caller)), "new owner not updater");
     }
 
     function testVersion() external {
@@ -52,6 +137,16 @@ contract MerkleRootRegistryTest {
         );
 
         require(!ok, "zero root accepted");
+    }
+
+    function testRejectInvalidRootUpdater() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+
+        (bool ok, ) = address(registry).call(
+            abi.encodeCall(MerkleRootRegistry.addRootUpdater, (address(0)))
+        );
+
+        require(!ok, "zero updater accepted");
     }
 
     function testContainsLeafHashReturnsFalseWithoutActiveRoot() external {

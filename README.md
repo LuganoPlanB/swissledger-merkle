@@ -18,6 +18,8 @@ package.
 This contract keeps only one Merkle root on-chain:
 
 - `activeRoot` is the latest valid state
+- `owner` manages the list of root updaters
+- `getRootUpdaters()` returns the currently allowed updater addresses
 - `setActiveRoot(newRoot)` replaces the previous root
 - `contains(...)` verifies a raw hash for trees built with `["felt252"]`
 - `containsLeafHash(...)` verifies a canonical leaf hash directly
@@ -37,6 +39,11 @@ Simple example:
 3. Later rebuild from `H1, H3` to revoke `H2` and set the new root.
 
 Only the last root is valid.
+
+Root rotation is not restricted to a single key. The contract keeps an
+owner-managed allowlist of updater addresses. Any allowed updater may publish
+the next `activeRoot`, and the owner can add or remove updater addresses as
+operational keys change.
 
 For hash-only expiration sets, keep insertion and expiry data off-chain and build
 the tree from raw hashes:

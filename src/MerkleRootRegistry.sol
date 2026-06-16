@@ -12,12 +12,18 @@ contract MerkleRootRegistry {
     error ZeroRoot();
     error Unauthorized();
     error InvalidOwner();
+    error InvalidRootUpdater();
 
     event ActiveRootUpdated(bytes32 indexed previousRoot, bytes32 indexed newRoot, address indexed updater);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event RootUpdaterAdded(address indexed updater);
+    event RootUpdaterRemoved(address indexed updater);
 
     bytes32 public activeRoot;
     address public owner;
+    mapping(address => bool) public isRootUpdater;
+    address[] private rootUpdaterList;
+    mapping(address => uint256) private rootUpdaterIndex;
 
     modifier onlyOwner() {
         if (msg.sender != owner) {
@@ -26,9 +32,17 @@ contract MerkleRootRegistry {
         _;
     }
 
+    modifier onlyRootUpdater() {
+        if (!isRootUpdater[msg.sender]) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
     constructor() {
         owner = msg.sender;
         emit OwnershipTransferred(address(0), msg.sender);
+        _addRootUpdater(msg.sender);
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
@@ -37,7 +51,21 @@ contract MerkleRootRegistry {
         }
         address oldOwner = owner;
         owner = newOwner;
+        _removeRootUpdater(oldOwner);
+        _addRootUpdater(newOwner);
         emit OwnershipTransferred(oldOwner, newOwner);
+    }
+
+    function addRootUpdater(address updater) external onlyOwner {
+        _addRootUpdater(updater);
+    }
+
+    function removeRootUpdater(address updater) external onlyOwner {
+        _removeRootUpdater(updater);
+    }
+
+    function getRootUpdaters() external view returns (address[] memory) {
+        return rootUpdaterList;
     }
 
     /// @notice Returns the semantic version embedded into this build.
@@ -46,7 +74,7 @@ contract MerkleRootRegistry {
     }
 
     /// @notice Replaces the current Merkle root with the latest off-chain state snapshot.
-    function setActiveRoot(bytes32 newRoot) external onlyOwner {
+    function setActiveRoot(bytes32 newRoot) external onlyRootUpdater {
         if (newRoot == bytes32(0)) {
             revert ZeroRoot();
         }
@@ -136,5 +164,38 @@ contract MerkleRootRegistry {
 
     function _isValidFelt(uint256 value) private pure returns (bool) {
         return value < FIELD_PRIME;
+    }
+
+    function _addRootUpdater(address updater) private {
+        if (updater == address(0)) {
+            revert InvalidRootUpdater();
+        }
+        if (isRootUpdater[updater]) {
+            return;
+        }
+
+        isRootUpdater[updater] = true;
+        rootUpdaterList.push(updater);
+        rootUpdaterIndex[updater] = rootUpdaterList.length;
+        emit RootUpdaterAdded(updater);
+    }
+
+    function _removeRootUpdater(address updater) private {
+        uint256 index = rootUpdaterIndex[updater];
+        if (index == 0) {
+            return;
+        }
+
+        uint256 lastIndex = rootUpdaterList.length;
+        if (index != lastIndex) {
+            address lastUpdater = rootUpdaterList[lastIndex - 1];
+            rootUpdaterList[index - 1] = lastUpdater;
+            rootUpdaterIndex[lastUpdater] = index;
+        }
+
+        rootUpdaterList.pop();
+        delete rootUpdaterIndex[updater];
+        delete isRootUpdater[updater];
+        emit RootUpdaterRemoved(updater);
     }
 }
