@@ -44,8 +44,6 @@ contract MerkleRootRegistryTest {
             "unexpected registry version"
         );
     }
-    }
-
     function testRejectZeroRoot() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
 
