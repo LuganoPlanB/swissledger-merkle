@@ -1,10 +1,17 @@
-import { getPositionalArgs, printJson, wantsHelp, failUsage } from "./lib/cli.mjs";
+import {
+  getPositionalArgs,
+  printJson,
+  readJsonFile,
+  wantsHelp,
+  failUsage,
+} from "./lib/cli.mjs";
+import { buildProofResponse } from "./lib/proof-command.mjs";
 
 const usage = `Usage: npm run merkle:proof -- <request.json>
 
 Request JSON shape:
 {
-  "dumpPath": "fixtures/merkle/tree.json",
+  "treePath": "fixtures/merkle/tree.json",
   "leafIndex": 0
 }`;
 
@@ -23,7 +30,11 @@ if (!requestPath) {
   failUsage("Missing request path.", usage);
 }
 
-failUsage(
-  `Proof generation is not implemented yet. Received request path: ${requestPath}`,
-  usage,
-);
+const request = readJsonFile(requestPath);
+
+if (!request.treePath) {
+  failUsage("Proof request requires treePath.", usage);
+}
+
+const dump = readJsonFile(request.treePath);
+printJson(buildProofResponse(request, dump));
