@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.0.0...v1.0.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* missing access control on setActiveRoot ([2038823](https://github.com/LuganoPlanB/swissledger-merkle/commit/20388230e226d161e665bf2df2b1bdf0b263a252))
+
 # 1.0.0 (2026-06-16)
 
 
