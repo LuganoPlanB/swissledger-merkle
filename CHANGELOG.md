@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.0.1...v1.1.0) (2026-06-16)
+
+
+### Features
+
+* **merkle:** verify raw hash leaves ([da06e40](https://github.com/LuganoPlanB/swissledger-merkle/commit/da06e407db763e800154737dd6d6028670c099ef))
+
 ## [1.0.1](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.0.0...v1.0.1) (2026-06-16)
 
 
