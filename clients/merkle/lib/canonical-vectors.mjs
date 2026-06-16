@@ -79,6 +79,10 @@ function nextHex(hexValue) {
   return `0x${(BigInt(hexValue) + 1n).toString(16)}`;
 }
 
+function sortFeltPair(a, b) {
+  return BigInt(a) <= BigInt(b) ? [a, b] : [b, a];
+}
+
 function buildInvalidProofs(proof) {
   if (proof.length === 0) {
     return {
@@ -99,6 +103,16 @@ function buildInvalidProofs(proof) {
 function buildScenarioVector(definition) {
   const tree = StandardMerkleTree.of(definition.values, definition.leafEncoding);
   const dump = tree.dump();
+  const nodePairs = [];
+
+  for (let index = 0; 2 * index + 2 < dump.tree.length; index += 1) {
+    const [left, right] = sortFeltPair(dump.tree[2 * index + 1], dump.tree[2 * index + 2]);
+    nodePairs.push({
+      left,
+      right,
+      hash: dump.tree[index],
+    });
+  }
 
   const leaves = definition.values.map((value, index) => {
     const proof = tree.getProof(index);
@@ -120,6 +134,7 @@ function buildScenarioVector(definition) {
     root: tree.root,
     tree: dump.tree,
     dump,
+    nodePairs,
     leaves,
     ...(definition.notes ? { notes: definition.notes } : {}),
   };
