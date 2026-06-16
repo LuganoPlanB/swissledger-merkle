@@ -79,23 +79,21 @@ CONTRACT_ADDRESS=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.rea
 
 cast send \
   "${CONTRACT_ADDRESS}" \
-  "notarizeRoot(bytes32)" \
+  "setActiveRoot(bytes32)" \
   "${ROOT}" \
   --rpc-url "${RPC_URL}" \
   --private-key "${PRIVATE_KEY}" >/dev/null
 
 VALID_RESULT=$(cast call \
   "${CONTRACT_ADDRESS}" \
-  "contains(bytes32,bytes32,bytes32[])(bool)" \
-  "${ROOT}" \
+  "contains(bytes32,bytes32[])(bool)" \
   "${LEAF_HASH}" \
   "[]" \
   --rpc-url "${RPC_URL}")
 
 INVALID_RESULT=$(cast call \
   "${CONTRACT_ADDRESS}" \
-  "contains(bytes32,bytes32,bytes32[])(bool)" \
-  "${ROOT}" \
+  "contains(bytes32,bytes32[])(bool)" \
   "${INVALID_LEAF_HASH}" \
   "[]" \
   --rpc-url "${RPC_URL}")

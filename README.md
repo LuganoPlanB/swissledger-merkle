@@ -6,12 +6,35 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Swissledger Merkle
 
-This repository builds a Merkle verifier and its local client
+This repository builds a Merkle verifier and its local client.
 
 The canonical Merkle rules are documented in
 [docs/strk-merkle-tree-parity.md](./docs/strk-merkle-tree-parity.md).
 Everything in this repo is expected to match `StandardMerkleTree` from that
 package.
+
+## Active Root Model
+
+This contract keeps only one Merkle root on-chain:
+
+- `activeRoot` is the latest valid state
+- `setActiveRoot(newRoot)` replaces the previous root
+- `contains(...)` and `containsMany(...)` verify only against `activeRoot`
+
+This means:
+
+- when you add hashes, rebuild the full tree off-chain and call `setActiveRoot`
+- when you revoke hashes, rebuild the full tree without those hashes and call `setActiveRoot`
+- old proofs stop working as soon as a new root replaces the previous one
+- on-chain storage does not grow with the number of updates; only the current root is stored
+
+Simple example:
+
+1. Build a tree from `H1, H2` and set that root.
+2. Later rebuild from `H1, H2, H3` and set the new root.
+3. Later rebuild from `H1, H3` to revoke `H2` and set the new root.
+
+Only the last root is valid.
 
 
 ## Setup
@@ -40,6 +63,9 @@ Run the Solidity tests:
 ```bash
 make test-solidity
 ```
+
+The registry tests include root rotation checks, which prove that proofs for an
+old root fail after `activeRoot` is updated.
 
 Regenerate vectors and prove Solidity parity from the generated fixtures:
 

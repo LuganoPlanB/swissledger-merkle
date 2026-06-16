@@ -9,23 +9,25 @@ contract MerkleRootRegistry {
 
     error ZeroRoot();
 
-    event RootNotarized(bytes32 indexed root, address indexed notarizer);
+    event ActiveRootUpdated(bytes32 indexed previousRoot, bytes32 indexed newRoot, address indexed updater);
 
-    mapping(bytes32 => bool) public notarizedRoots;
+    bytes32 public activeRoot;
 
-    /// @notice Stores a Merkle root so later membership checks can reference it on-chain.
-    function notarizeRoot(bytes32 root) external {
-        if (root == bytes32(0)) {
+    /// @notice Replaces the current Merkle root with the latest off-chain state snapshot.
+    function setActiveRoot(bytes32 newRoot) external {
+        if (newRoot == bytes32(0)) {
             revert ZeroRoot();
         }
 
-        notarizedRoots[root] = true;
-        emit RootNotarized(root, msg.sender);
+        bytes32 previousRoot = activeRoot;
+        activeRoot = newRoot;
+        emit ActiveRootUpdated(previousRoot, newRoot, msg.sender);
     }
 
-    /// @notice Checks whether a single leaf hash is included in a notarized root.
-    function contains(bytes32 root, bytes32 leafHash, bytes32[] calldata proof) external view returns (bool) {
-        if (!notarizedRoots[root]) {
+    /// @notice Checks whether a single leaf hash is included in the latest active root.
+    function contains(bytes32 leafHash, bytes32[] calldata proof) external view returns (bool) {
+        bytes32 root = activeRoot;
+        if (root == bytes32(0)) {
             return false;
         }
 
@@ -45,14 +47,14 @@ contract MerkleRootRegistry {
         return StrkMerkleProof.verify(uint256(root), uint256(leafHash), feltProof);
     }
 
-    /// @notice Checks whether a set of leaf hashes is included in a notarized root.
+    /// @notice Checks whether a set of leaf hashes is included in the latest active root.
     function containsMany(
-        bytes32 root,
         bytes32[] calldata leafHashes,
         bytes32[] calldata proof,
         bool[] calldata proofFlags
     ) external view returns (bool) {
-        if (!notarizedRoots[root]) {
+        bytes32 root = activeRoot;
+        if (root == bytes32(0)) {
             return false;
         }
 
