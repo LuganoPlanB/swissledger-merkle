@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {BuildInfo} from "./generated/BuildInfo.sol";
 import {StrkMerkleProof} from "./StrkMerkleProof.sol";
 
 contract MerkleRootRegistry {
@@ -12,6 +13,11 @@ contract MerkleRootRegistry {
     event ActiveRootUpdated(bytes32 indexed previousRoot, bytes32 indexed newRoot, address indexed updater);
 
     bytes32 public activeRoot;
+
+    /// @notice Returns the semantic version embedded into this build.
+    function version() external pure returns (string memory) {
+        return BuildInfo.VERSION;
+    }
 
     /// @notice Replaces the current Merkle root with the latest off-chain state snapshot.
     function setActiveRoot(bytes32 newRoot) external {

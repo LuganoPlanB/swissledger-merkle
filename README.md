@@ -36,6 +36,31 @@ Simple example:
 
 Only the last root is valid.
 
+## Versioning And Releases
+
+This repository now uses conventional-commit semantic versioning on the main
+release branch.
+
+- pushes to `master` trigger the release workflow
+- this checkout also accepts `main`, because the current default branch is `main`
+- `semantic-release` computes the next SemVer version from conventional commits
+- `CHANGELOG.md` is updated automatically
+- a GitHub release and Git tag are created automatically
+
+The Solidity build also embeds the current project version:
+
+- `scripts/generate-build-info.mjs` writes `src/generated/BuildInfo.sol`
+- Forge targets regenerate that file before compiling
+- `MerkleRootRegistry.version()` returns the embedded version string
+
+Clients can call:
+
+```text
+version() -> string
+```
+
+to read which build version of the contract they are talking to.
+
 
 ## Setup
 
@@ -87,6 +112,12 @@ make test-all
 
 `make test` is an alias for `make test-all`, and the GitHub Actions workflow uses
 that same full target.
+
+Regenerate the Solidity build version file only:
+
+```bash
+make generate-build-info
+```
 
 # Licensing
 
