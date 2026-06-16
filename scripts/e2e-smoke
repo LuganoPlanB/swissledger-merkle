@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+RPC_PORT=${ANVIL_PORT:-8546}
+RPC_URL="http://127.0.0.1:${RPC_PORT}"
+PRIVATE_KEY=$(<"${ROOT_DIR}/evm-private-key.txt")
+ADDRESS=$(<"${ROOT_DIR}/evm-address.txt")
+ANVIL_DEFAULT_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+TMP_DIR=$(mktemp -d)
+ANVIL_LOG="${TMP_DIR}/anvil.log"
+
+cleanup() {
+  if [[ -n "${ANVIL_PID:-}" ]]; then
+    kill "${ANVIL_PID}" >/dev/null 2>&1 || true
+    wait "${ANVIL_PID}" >/dev/null 2>&1 || true
+  fi
+  rm -rf "${TMP_DIR}"
+}
+
+trap cleanup EXIT
+
+anvil --port "${RPC_PORT}" --chain-id 31337 >"${ANVIL_LOG}" 2>&1 &
+ANVIL_PID=$!
+
+for _ in $(seq 1 20); do
+  if cast block-number --rpc-url "${RPC_URL}" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+
+cast block-number --rpc-url "${RPC_URL}" >/dev/null
+
+cast send \
+  "${ADDRESS}" \
+  --value 10ether \
+  --rpc-url "${RPC_URL}" \
+  --private-key "${ANVIL_DEFAULT_PRIVATE_KEY}" >/dev/null
+
+REQUEST_JSON="${TMP_DIR}/request.json"
+ROOT_JSON="${TMP_DIR}/root.json"
+PROOF_REQUEST_JSON="${TMP_DIR}/proof-request.json"
+PROOF_JSON="${TMP_DIR}/proof.json"
+DEPLOY_JSON="${TMP_DIR}/deploy.json"
+
+printf '%s\n' \
+  '{' \
+  '  "leafEncoding": ["ContractAddress", "u128"],' \
+  '  "values": [[' \
+  '    "0x1111111111111111111111111111111111111111", "5"' \
+  '  ]]' \
+  '}' > "${REQUEST_JSON}"
+
+node "${ROOT_DIR}/clients/merkle/merkle-root.mjs" "${REQUEST_JSON}" > "${ROOT_JSON}"
+
+TREE_PATH=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(data.treePath);' "${ROOT_JSON}")
+ROOT=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(data.root);' "${ROOT_JSON}")
+
+printf '%s\n' \
+  '{' \
+  "  \"treePath\": \"${TREE_PATH}\"," \
+  '  "leafIndex": 0' \
+  '}' > "${PROOF_REQUEST_JSON}"
+
+node "${ROOT_DIR}/clients/merkle/merkle-proof.mjs" "${PROOF_REQUEST_JSON}" > "${PROOF_JSON}"
+
+LEAF_HASH=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(data.leafHash);' "${PROOF_JSON}")
+INVALID_LEAF_HASH=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(`0x${(BigInt(data.leafHash) + 1n).toString(16).padStart(64, "0")}`);' "${PROOF_JSON}")
+
+forge create \
+  "${ROOT_DIR}/src/MerkleRootRegistry.sol:MerkleRootRegistry" \
+  --rpc-url "${RPC_URL}" \
+  --private-key "${PRIVATE_KEY}" \
+  --broadcast \
+  --json > "${DEPLOY_JSON}"
+
+CONTRACT_ADDRESS=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(data.deployedTo);' "${DEPLOY_JSON}")
+
+cast send \
+  "${CONTRACT_ADDRESS}" \
+  "notarizeRoot(bytes32)" \
+  "${ROOT}" \
+  --rpc-url "${RPC_URL}" \
+  --private-key "${PRIVATE_KEY}" >/dev/null
+
+VALID_RESULT=$(cast call \
+  "${CONTRACT_ADDRESS}" \
+  "contains(bytes32,bytes32,bytes32[])(bool)" \
+  "${ROOT}" \
+  "${LEAF_HASH}" \
+  "[]" \
+  --rpc-url "${RPC_URL}")
+
+INVALID_RESULT=$(cast call \
+  "${CONTRACT_ADDRESS}" \
+  "contains(bytes32,bytes32,bytes32[])(bool)" \
+  "${ROOT}" \
+  "${INVALID_LEAF_HASH}" \
+  "[]" \
+  --rpc-url "${RPC_URL}")
+
+node -e '
+const [contractAddress, root, validResult, invalidResult] = process.argv.slice(1);
+process.stdout.write(`${JSON.stringify({
+  contractAddress,
+  root,
+  validResult,
+  invalidResult,
+}, null, 2)}\n`);
+' "${CONTRACT_ADDRESS}" "${ROOT}" "${VALID_RESULT}" "${INVALID_RESULT}"

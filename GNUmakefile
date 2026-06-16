@@ -12,6 +12,9 @@ generate-vectors:
 test-parity: generate-vectors
 	forge test --match-path test/generated/GeneratedMerkleParity.t.sol
 
+test-smoke:
+	./scripts/e2e-smoke
+
 test-client:
 	npm test
 
