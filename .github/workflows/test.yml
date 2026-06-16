@@ -29,20 +29,5 @@ jobs:
       - name: Generate local keyring
         run: ./scripts/keygen
 
-      - name: Build contracts
-        run: make build
-
-      - name: Regenerate vectors
-        run: make generate-vectors
-
-      - name: Test client
-        run: make test-client
-
-      - name: Test Solidity
-        run: make test-solidity
-
-      - name: Test generated parity
-        run: make test-parity
-
-      - name: Run smoke flow
-        run: make test-smoke
+      - name: Run full test surface
+        run: make test-all

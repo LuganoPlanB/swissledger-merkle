@@ -1,4 +1,4 @@
-# swissledger-up
+# swissledger-merkle
 
 This repository builds a Solidity Merkle verifier and its local client around
 `@ericnordelo/strk-merkle-tree@1.0.1`.
@@ -50,5 +50,8 @@ make test-smoke
 Run the full local test surface:
 
 ```bash
-make test
+make test-all
 ```
+
+`make test` is an alias for `make test-all`, and the GitHub Actions workflow uses
+that same full target.

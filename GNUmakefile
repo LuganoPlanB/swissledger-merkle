@@ -9,6 +9,8 @@ build:
 generate-vectors:
 	npm run generate:vectors
 
+test-all: build generate-vectors test-client test-solidity test-parity test-smoke
+
 test-parity: generate-vectors
 	forge test --match-path test/generated/GeneratedMerkleParity.t.sol
 
@@ -21,4 +23,4 @@ test-client:
 test-solidity:
 	forge test
 
-test: test-client test-solidity
+test: test-all
