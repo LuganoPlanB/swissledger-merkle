@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOLC_VERSION=${1:-0.8.35}
+sudo apt-get -qy install gcc g++ ccache git make cmake ninja-build libboost-dev libboost-filesystem-dev libboost-test-dev libboost-program-options-dev
+[ -r solidty ] && git clone https://github.com/ethereum/solidity
+
+cd solidity && git checkout tags/v$SOLC_VERSION \
+    && touch prerelease.txt \
+    && cmake -B build -DCMAKE_BUILD_TYPE=Release -DTESTS=0 -G Ninja \
+    && ninja -C build
+cd - && mv solidity/build/solc/solc .

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[ -r $HOME/.config/.foundry/ ] || {
+  curl -L https://foundry.paradigm.xyz | bash
+  $HOME/.config/.foundry/bin/foundryup
+}
+
+[ -r $HOME/.local/bin/mise ] || {
+  curl https://mise.run | sh
+}
+
+mise use "aqua:dyne/slangroom-exec"

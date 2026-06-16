@@ -1,0 +1,4 @@
+[tools]
+"aqua:dyne/slangroom-exec" = "latest"
+"aqua:dyne/zenroom" = "latest"
+node = "24"

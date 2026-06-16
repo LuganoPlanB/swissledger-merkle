@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PATH=$HOME/.config/.foundry/bin/:$PATH
+
+cast wallet new --json > evm-wallet.json
+chmod 600 evm-wallet.json
+
+cat evm-wallet.json | grep address | cut -d\" -f4 > evm-address.txt
+cat evm-wallet.json | grep private_key | cut -d\" -f4 > evm-private-key.txt
+chmod 600 evm-private-key.txt
+
+echo "Address: $(cat evm-address.txt)"
+echo "Private key saved to evm-private-key.txt"
