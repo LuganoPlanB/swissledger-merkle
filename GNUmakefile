@@ -9,6 +9,9 @@ build:
 generate-vectors:
 	npm run generate:vectors
 
+test-parity: generate-vectors
+	forge test --match-path test/generated/GeneratedMerkleParity.t.sol
+
 test-client:
 	npm test
 

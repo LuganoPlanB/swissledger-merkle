@@ -12,6 +12,12 @@ export const canonicalVectorsPath = path.join(
   "merkle",
   "standard-vectors.json",
 );
+export const generatedParityTestPath = path.join(
+  repoRoot,
+  "test",
+  "generated",
+  "GeneratedMerkleParity.t.sol",
+);
 
 const BAD_FELT = "0x01";
 
@@ -153,5 +159,60 @@ export function writeCanonicalVectors(outputPath = canonicalVectorsPath) {
   const vectors = buildCanonicalVectors();
   mkdirSync(path.dirname(outputPath), { recursive: true });
   writeFileSync(outputPath, `${JSON.stringify(vectors, null, 2)}\n`);
+  writeGeneratedParityTest(vectors);
   return { outputPath, vectors };
+}
+
+function toSolidityUint(hexValue) {
+  return `uint256(${hexValue})`;
+}
+
+function toSolidityUintArray(values) {
+  if (values.length === 0) {
+    return [
+      "        uint256[] memory proof = new uint256[](0);",
+    ];
+  }
+
+  return [
+    `        uint256[] memory proof = new uint256[](${values.length});`,
+    ...values.map((value, index) => `        proof[${index}] = ${toSolidityUint(value)};`),
+  ];
+}
+
+function solidityTestName(input) {
+  return input.replace(/[^a-zA-Z0-9]+/g, "_");
+}
+
+function buildGeneratedParityTest(vectors) {
+  const lines = [
+    "// SPDX-License-Identifier: MIT",
+    "pragma solidity ^0.8.30;",
+    "",
+    'import {StrkMerkleProof} from "../../src/StrkMerkleProof.sol";',
+    "",
+    "contract GeneratedMerkleParityTest {",
+  ];
+
+  for (const scenario of vectors.scenarios) {
+    for (const leaf of scenario.leaves) {
+      lines.push(
+        `    function test_${solidityTestName(scenario.name)}_leaf_${leaf.index}() external pure {`,
+        `        uint256 root = ${toSolidityUint(scenario.root)};`,
+        `        uint256 leafHash = ${toSolidityUint(leaf.leafHash)};`,
+        ...toSolidityUintArray(leaf.proof),
+        '        require(StrkMerkleProof.verify(root, leafHash, proof), "generated proof failed");',
+        "    }",
+        "",
+      );
+    }
+  }
+
+  lines.push("}");
+  return `${lines.join("\n")}\n`;
+}
+
+function writeGeneratedParityTest(vectors) {
+  mkdirSync(path.dirname(generatedParityTestPath), { recursive: true });
+  writeFileSync(generatedParityTestPath, buildGeneratedParityTest(vectors));
 }
