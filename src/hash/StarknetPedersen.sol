@@ -39,6 +39,14 @@ library StarknetPedersen {
         return _pedersenRaw(state, 2);
     }
 
+    /// @notice Computes the StandardMerkleTree leaf hash for one felt252 value.
+    function hashFelt252Leaf(uint256 value) internal pure returns (uint256) {
+        _assertFelt(value);
+
+        uint256 serializedHash = _pedersenRaw(_pedersenRaw(0, value), 1);
+        return _pedersenRaw(0, serializedHash);
+    }
+
     function _assertFelt(uint256 value) private pure {
         require(value < FIELD_PRIME, "felt overflow");
     }

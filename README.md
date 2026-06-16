@@ -20,6 +20,7 @@ This contract keeps only one Merkle root on-chain:
 - `activeRoot` is the latest valid state
 - `setActiveRoot(newRoot)` replaces the previous root
 - `contains(...)` and `containsMany(...)` verify only against `activeRoot`
+- `containsHash(...)` verifies a raw hash for trees built with `["felt252"]`
 
 This means:
 
@@ -35,6 +36,25 @@ Simple example:
 3. Later rebuild from `H1, H3` to revoke `H2` and set the new root.
 
 Only the last root is valid.
+
+For hash-only expiration sets, keep insertion and expiry data off-chain and build
+the tree from raw hashes:
+
+```json
+{
+  "leafEncoding": ["felt252"],
+  "values": [["0xHASH_1"], ["0xHASH_2"]]
+}
+```
+
+Then clients can verify directly by raw hash:
+
+```text
+containsHash(hash, proof) -> bool
+```
+
+Use `contains(leafHash, proof)` only when the caller already has the canonical
+Merkle leaf hash.
 
 ## Versioning And Releases
 

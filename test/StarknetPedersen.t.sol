@@ -7,6 +7,10 @@ contract StarknetPedersenHarness {
     function hashPair(uint256 left, uint256 right) external pure returns (uint256) {
         return StarknetPedersen.hashPair(left, right);
     }
+
+    function hashFelt252Leaf(uint256 value) external pure returns (uint256) {
+        return StarknetPedersen.hashFelt252Leaf(value);
+    }
 }
 
 contract StarknetPedersenTest {
@@ -46,12 +50,30 @@ contract StarknetPedersenTest {
         require(sortedHash != unsortedHash, "hash unexpectedly sorts");
     }
 
+    function testHashFelt252LeafMatchesVector() external pure {
+        uint256 value = 0x111111111111111111111111111111111111111111111111111111111111111;
+        uint256 expected = 0x0b0ed368c332c385f755eb9d2ac5554d1c2c2692640e37d2605c0b8cfdbd78;
+
+        require(StarknetPedersen.hashFelt252Leaf(value) == expected, "felt leaf mismatch");
+    }
+
     function testHashPairRejectsFieldOverflow() external {
         uint256 fieldPrime =
             3618502788666131213697322783095070105623107215331596699973092056135872020481;
 
         (bool ok, ) = address(harness).call(
             abi.encodeCall(StarknetPedersenHarness.hashPair, (fieldPrime, 1))
+        );
+
+        require(!ok, "expected overflow revert");
+    }
+
+    function testHashFelt252LeafRejectsFieldOverflow() external {
+        uint256 fieldPrime =
+            3618502788666131213697322783095070105623107215331596699973092056135872020481;
+
+        (bool ok, ) = address(harness).call(
+            abi.encodeCall(StarknetPedersenHarness.hashFelt252Leaf, (fieldPrime))
         );
 
         require(!ok, "expected overflow revert");

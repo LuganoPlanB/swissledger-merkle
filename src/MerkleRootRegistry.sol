@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {BuildInfo} from "./generated/BuildInfo.sol";
+import {StarknetPedersen} from "./hash/StarknetPedersen.sol";
 import {StrkMerkleProof} from "./StrkMerkleProof.sol";
 
 contract MerkleRootRegistry {
@@ -57,6 +58,20 @@ contract MerkleRootRegistry {
 
     /// @notice Checks whether a single leaf hash is included in the latest active root.
     function contains(bytes32 leafHash, bytes32[] calldata proof) external view returns (bool) {
+        return _containsLeafHash(leafHash, proof);
+    }
+
+    /// @notice Checks whether a raw felt252 hash is included in the latest active root.
+    function containsHash(bytes32 hashValue, bytes32[] calldata proof) external view returns (bool) {
+        if (!_isValidFelt(uint256(hashValue))) {
+            return false;
+        }
+
+        uint256 leafHash = StarknetPedersen.hashFelt252Leaf(uint256(hashValue));
+        return _containsLeafHash(bytes32(leafHash), proof);
+    }
+
+    function _containsLeafHash(bytes32 leafHash, bytes32[] calldata proof) private view returns (bool) {
         bytes32 root = activeRoot;
         if (root == bytes32(0)) {
             return false;
