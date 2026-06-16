@@ -19,8 +19,9 @@ This contract keeps only one Merkle root on-chain:
 
 - `activeRoot` is the latest valid state
 - `setActiveRoot(newRoot)` replaces the previous root
-- `contains(...)` and `containsMany(...)` verify only against `activeRoot`
-- `containsHash(...)` verifies a raw hash for trees built with `["felt252"]`
+- `contains(...)` verifies a raw hash for trees built with `["felt252"]`
+- `containsLeafHash(...)` verifies a canonical leaf hash directly
+- `containsMany(...)` verifies only against `activeRoot`
 
 This means:
 
@@ -50,11 +51,11 @@ the tree from raw hashes:
 Then clients can verify directly by raw hash:
 
 ```text
-containsHash(hash, proof) -> bool
+contains(hash, proof) -> bool
 ```
 
-Use `contains(leafHash, proof)` only when the caller already has the canonical
-Merkle leaf hash.
+Use `containsLeafHash(leafHash, proof)` only when the caller already has the
+canonical Merkle leaf hash.
 
 ## Versioning And Releases
 

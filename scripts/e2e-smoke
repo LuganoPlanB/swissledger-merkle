@@ -86,14 +86,14 @@ cast send \
 
 VALID_RESULT=$(cast call \
   "${CONTRACT_ADDRESS}" \
-  "contains(bytes32,bytes32[])(bool)" \
+  "containsLeafHash(bytes32,bytes32[])(bool)" \
   "${LEAF_HASH}" \
   "[]" \
   --rpc-url "${RPC_URL}")
 
 INVALID_RESULT=$(cast call \
   "${CONTRACT_ADDRESS}" \
-  "contains(bytes32,bytes32[])(bool)" \
+  "containsLeafHash(bytes32,bytes32[])(bool)" \
   "${INVALID_LEAF_HASH}" \
   "[]" \
   --rpc-url "${RPC_URL}")

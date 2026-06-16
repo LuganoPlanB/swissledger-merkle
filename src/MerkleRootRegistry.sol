@@ -56,13 +56,13 @@ contract MerkleRootRegistry {
         emit ActiveRootUpdated(previousRoot, newRoot, msg.sender);
     }
 
-    /// @notice Checks whether a single leaf hash is included in the latest active root.
-    function contains(bytes32 leafHash, bytes32[] calldata proof) external view returns (bool) {
+    /// @notice Checks whether a single canonical leaf hash is included in the latest active root.
+    function containsLeafHash(bytes32 leafHash, bytes32[] calldata proof) external view returns (bool) {
         return _containsLeafHash(leafHash, proof);
     }
 
     /// @notice Checks whether a raw felt252 hash is included in the latest active root.
-    function containsHash(bytes32 hashValue, bytes32[] calldata proof) external view returns (bool) {
+    function contains(bytes32 hashValue, bytes32[] calldata proof) external view returns (bool) {
         if (!_isValidFelt(uint256(hashValue))) {
             return false;
         }

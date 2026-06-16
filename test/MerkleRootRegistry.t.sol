@@ -54,7 +54,7 @@ contract MerkleRootRegistryTest {
         require(!ok, "zero root accepted");
     }
 
-    function testContainsReturnsFalseWithoutActiveRoot() external {
+    function testContainsLeafHashReturnsFalseWithoutActiveRoot() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 leafHash = bytes32(
             uint256(0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9)
@@ -65,10 +65,10 @@ contract MerkleRootRegistryTest {
         );
         proof[1] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
 
-        require(!registry.contains(leafHash, proof), "proof accepted without active root");
+        require(!registry.containsLeafHash(leafHash, proof), "proof accepted without active root");
     }
 
-    function testContainsReturnsTrueForValidActiveProof() external {
+    function testContainsLeafHashReturnsTrueForValidActiveProof() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
         bytes32 leafHash = bytes32(
@@ -82,10 +82,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(registry.contains(leafHash, proof), "valid proof rejected");
+        require(registry.containsLeafHash(leafHash, proof), "valid proof rejected");
     }
 
-    function testContainsHashReturnsTrueForValidActiveProof() external {
+    function testContainsReturnsTrueForValidRawHashProof() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x015e318202e2b8729373651926fea9f3bc71c4d40ba07e1d4cd09049be91881e));
         bytes32 hashValue = bytes32(
@@ -98,10 +98,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(registry.containsHash(hashValue, proof), "valid hash proof rejected");
+        require(registry.contains(hashValue, proof), "valid hash proof rejected");
     }
 
-    function testContainsHashReturnsFalseForWrongHash() external {
+    function testContainsReturnsFalseForWrongRawHash() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x015e318202e2b8729373651926fea9f3bc71c4d40ba07e1d4cd09049be91881e));
         bytes32 hashValue = bytes32(
@@ -114,10 +114,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(!registry.containsHash(hashValue, proof), "wrong hash accepted");
+        require(!registry.contains(hashValue, proof), "wrong hash accepted");
     }
 
-    function testContainsReturnsFalseForWrongLeaf() external {
+    function testContainsLeafHashReturnsFalseForWrongLeaf() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
         bytes32 leafHash = bytes32(
@@ -131,10 +131,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(!registry.contains(leafHash, proof), "wrong leaf accepted");
+        require(!registry.containsLeafHash(leafHash, proof), "wrong leaf accepted");
     }
 
-    function testContainsReturnsFalseForInvalidProof() external {
+    function testContainsLeafHashReturnsFalseForInvalidProof() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
         bytes32 leafHash = bytes32(
@@ -146,10 +146,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(!registry.contains(leafHash, proof), "invalid proof accepted");
+        require(!registry.containsLeafHash(leafHash, proof), "invalid proof accepted");
     }
 
-    function testContainsReturnsFalseAfterRootRotation() external {
+    function testContainsLeafHashReturnsFalseAfterRootRotation() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 oldRoot = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
         bytes32 newRoot = bytes32(uint256(0x0354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6863));
@@ -163,13 +163,13 @@ contract MerkleRootRegistryTest {
         proof[1] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
 
         registry.setActiveRoot(oldRoot);
-        require(registry.contains(leafHash, proof), "old proof should verify before rotation");
+        require(registry.containsLeafHash(leafHash, proof), "old proof should verify before rotation");
 
         registry.setActiveRoot(newRoot);
-        require(!registry.contains(leafHash, proof), "old proof accepted after root rotation");
+        require(!registry.containsLeafHash(leafHash, proof), "old proof accepted after root rotation");
     }
 
-    function testContainsReturnsFalseForOutOfFieldLeafHash() external {
+    function testContainsLeafHashReturnsFalseForOutOfFieldLeafHash() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
         bytes32 leafHash = bytes32(FIELD_PRIME);
@@ -181,10 +181,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(!registry.contains(leafHash, proof), "out-of-field leaf hash accepted");
+        require(!registry.containsLeafHash(leafHash, proof), "out-of-field leaf hash accepted");
     }
 
-    function testContainsHashReturnsFalseForOutOfFieldHash() external {
+    function testContainsReturnsFalseForOutOfFieldRawHash() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x015e318202e2b8729373651926fea9f3bc71c4d40ba07e1d4cd09049be91881e));
         bytes32[] memory proof = new bytes32[](1);
@@ -194,10 +194,10 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(!registry.containsHash(bytes32(FIELD_PRIME), proof), "out-of-field hash accepted");
+        require(!registry.contains(bytes32(FIELD_PRIME), proof), "out-of-field hash accepted");
     }
 
-    function testContainsReturnsFalseForOutOfFieldProofElement() external {
+    function testContainsLeafHashReturnsFalseForOutOfFieldProofElement() external {
         MerkleRootRegistry registry = new MerkleRootRegistry();
         bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
         bytes32 leafHash = bytes32(
@@ -209,7 +209,7 @@ contract MerkleRootRegistryTest {
 
         registry.setActiveRoot(root);
 
-        require(!registry.contains(leafHash, proof), "out-of-field proof accepted");
+        require(!registry.containsLeafHash(leafHash, proof), "out-of-field proof accepted");
     }
 
     function testContainsManyReturnsTrueForValidActiveMultiproof() external {
