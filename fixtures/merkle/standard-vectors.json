@@ -56,7 +56,8 @@
           "wrongLeafHash": "0x693e6761b37d88d77eb11e42e2fed1452bc5aa8a1566f5d5e4ec3c123e5aa05",
           "wrongRoot": "0x693e6761b37d88d77eb11e42e2fed1452bc5aa8a1566f5d5e4ec3c123e5aa05"
         }
-      ]
+      ],
+      "multiproofs": []
     },
     {
       "name": "two-leaf-u128",
@@ -162,7 +163,8 @@
           "wrongLeafHash": "0x15bf386477e7948a51fd27848739f156fb2bb3907e62c326d90f5f71d07e859",
           "wrongRoot": "0x354b09ac3a192e45433a9fa81a366283e230999522af8f8a249f2a1982f6864"
         }
-      ]
+      ],
+      "multiproofs": []
     },
     {
       "name": "four-leaf-u128",
@@ -374,6 +376,86 @@
           "wrongLeafHash": "0x5920afe2ba39087066ca3ddfd77c5d252216d72af6ccab608a56a49876c5243",
           "wrongRoot": "0x26a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8e"
         }
+      ],
+      "multiproofs": [
+        {
+          "name": "adjacent-middle",
+          "inputIndices": [
+            1,
+            2
+          ],
+          "leafIndices": [
+            2,
+            1
+          ],
+          "values": [
+            [
+              "0x3333333333333333333333333333333333333333",
+              "30"
+            ],
+            [
+              "0x2222222222222222222222222222222222222222",
+              "20"
+            ]
+          ],
+          "leafHashes": [
+            "0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9",
+            "0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3"
+          ],
+          "proof": [
+            "0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8"
+          ],
+          "proofFlags": [
+            true,
+            false
+          ],
+          "wrongRoot": "0x26a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8e"
+        },
+        {
+          "name": "non-adjacent-edges",
+          "inputIndices": [
+            0,
+            3
+          ],
+          "leafIndices": [
+            3,
+            0
+          ],
+          "values": [
+            [
+              "0x4444444444444444444444444444444444444444",
+              "40"
+            ],
+            [
+              "0x1111111111111111111111111111111111111111",
+              "10"
+            ]
+          ],
+          "leafHashes": [
+            "0x05920afe2ba39087066ca3ddfd77c5d252216d72af6ccab608a56a49876c5242",
+            "0x07b1da63b7a8f5fd302edae6cf4913ecf0082a64190409d1ec8ffd23cee3efab"
+          ],
+          "proof": [
+            "0x07cd655617801ba20d8b50962e56ea07429d1126a67e3512ca2534ef95c53646"
+          ],
+          "proofFlags": [
+            true,
+            false
+          ],
+          "wrongRoot": "0x26a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8e"
+        },
+        {
+          "name": "empty-selection",
+          "inputIndices": [],
+          "leafIndices": [],
+          "values": [],
+          "leafHashes": [],
+          "proof": [
+            "0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d"
+          ],
+          "proofFlags": [],
+          "wrongRoot": "0x26a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8e"
+        }
       ]
     },
     {
@@ -544,6 +626,43 @@
           "wrongLeafHash": "0x351bf9336fbe77f7f48eacc6967e3a72e963552f72dec940647e3339366f9a4",
           "wrongRoot": "0x4f45d05a231de57f778e41c197e26c82fbf79776f61b8720c96eb55c076853f"
         }
+      ],
+      "multiproofs": [
+        {
+          "name": "outer-pair",
+          "inputIndices": [
+            0,
+            2
+          ],
+          "leafIndices": [
+            2,
+            0
+          ],
+          "values": [
+            [
+              "0x3333333333333333333333333333333333333333",
+              "999999999999999999999999999999999999",
+              true
+            ],
+            [
+              "0x1111111111111111111111111111111111111111",
+              "340282366920938463463374607431768211455",
+              true
+            ]
+          ],
+          "leafHashes": [
+            "0x0351bf9336fbe77f7f48eacc6967e3a72e963552f72dec940647e3339366f9a3",
+            "0x060a6156bc8ffa702028a2fd7c359b5b45b12f92655846df8a0dddb6219af196"
+          ],
+          "proof": [
+            "0x02cedce65ae8739f4281e152fe0efe3a524c46d7621b1154e18b1554d2991394"
+          ],
+          "proofFlags": [
+            false,
+            true
+          ],
+          "wrongRoot": "0x4f45d05a231de57f778e41c197e26c82fbf79776f61b8720c96eb55c076853f"
+        }
       ]
     },
     {
@@ -704,6 +823,7 @@
           "wrongRoot": "0x7828d9e9eb1fdff62a7cf6b76d6638e17636e5332536a1392faf0da3628bdcd"
         }
       ],
+      "multiproofs": [],
       "notes": [
         "Duplicate values are allowed and create duplicate leaf hashes.",
         "Membership is about inclusion in the tree, not identifying a unique occurrence."

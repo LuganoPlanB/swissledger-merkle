@@ -108,4 +108,74 @@ contract MerkleRootRegistryTest {
 
         require(!registry.contains(root, leafHash, proof), "invalid proof accepted");
     }
+
+    function testContainsManyReturnsTrueForValidNotarizedMultiproof() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32[] memory leafHashes = new bytes32[](2);
+        leafHashes[0] = bytes32(
+            uint256(0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9)
+        );
+        leafHashes[1] = bytes32(
+            uint256(0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3)
+        );
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
+
+        bool[] memory proofFlags = new bool[](2);
+        proofFlags[0] = true;
+        proofFlags[1] = false;
+
+        registry.notarizeRoot(root);
+
+        require(registry.containsMany(root, leafHashes, proof, proofFlags), "valid multiproof rejected");
+    }
+
+    function testContainsManyReturnsFalseForWrongLeaf() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32[] memory leafHashes = new bytes32[](2);
+        leafHashes[0] = bytes32(
+            uint256(0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9ba)
+        );
+        leafHashes[1] = bytes32(
+            uint256(0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3)
+        );
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = bytes32(uint256(0x987cd9c047f028ef8704bbbaecc9196d0a8fb89120d837955b4eb0fa640ca8));
+
+        bool[] memory proofFlags = new bool[](2);
+        proofFlags[0] = true;
+        proofFlags[1] = false;
+
+        registry.notarizeRoot(root);
+
+        require(
+            !registry.containsMany(root, leafHashes, proof, proofFlags),
+            "wrong multiproof leaf accepted"
+        );
+    }
+
+    function testContainsManyReturnsFalseForMalformedFlags() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+        bytes32 root = bytes32(uint256(0x026a23d0b11e788fb6e263f29efb010f0f7455b9c69431aa0b40a91ffac80f8d));
+        bytes32[] memory leafHashes = new bytes32[](2);
+        leafHashes[0] = bytes32(
+            uint256(0x01264b5e40436dd2d91ee3254ec814b097961884a7e37a9965b7cf7b2646b9b9)
+        );
+        leafHashes[1] = bytes32(
+            uint256(0x01a1b7703f2c66869de53da0855f30fd376e40f6c142a5d74a80cb7d4ee0b5e3)
+        );
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](2);
+        proofFlags[0] = true;
+        proofFlags[1] = false;
+
+        registry.notarizeRoot(root);
+
+        require(!registry.containsMany(root, leafHashes, proof, proofFlags), "malformed flags accepted");
+    }
 }

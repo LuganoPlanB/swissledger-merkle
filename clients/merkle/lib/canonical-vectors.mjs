@@ -44,6 +44,11 @@ const canonicalScenarios = [
       ["0x3333333333333333333333333333333333333333", "30"],
       ["0x4444444444444444444444444444444444444444", "40"],
     ],
+    multiproofs: [
+      { name: "adjacent-middle", inputIndices: [1, 2] },
+      { name: "non-adjacent-edges", inputIndices: [0, 3] },
+      { name: "empty-selection", inputIndices: [] },
+    ],
   },
   {
     name: "odd-count-u256-bool",
@@ -65,6 +70,7 @@ const canonicalScenarios = [
         true,
       ],
     ],
+    multiproofs: [{ name: "outer-pair", inputIndices: [0, 2] }],
   },
   {
     name: "duplicate-values",
@@ -106,6 +112,26 @@ function buildInvalidProofs(proof) {
   };
 }
 
+function buildMultiproofs(tree, definition) {
+  return (definition.multiproofs ?? []).map(({ name, inputIndices }) => {
+    const multiproof = tree.getMultiProof(inputIndices);
+    const leafIndices = inputIndices
+      .slice()
+      .sort((left, right) => tree.values[right].treeIndex - tree.values[left].treeIndex);
+
+    return {
+      name,
+      inputIndices,
+      leafIndices,
+      values: multiproof.leaves,
+      leafHashes: leafIndices.map(index => tree.leafHash(definition.values[index])),
+      proof: multiproof.proof,
+      proofFlags: multiproof.proofFlags,
+      wrongRoot: nextHex(tree.root),
+    };
+  });
+}
+
 function buildScenarioVector(definition) {
   const tree = StandardMerkleTree.of(definition.values, definition.leafEncoding);
   const dump = tree.dump();
@@ -132,6 +158,7 @@ function buildScenarioVector(definition) {
       wrongRoot: nextHex(tree.root),
     };
   });
+  const multiproofs = buildMultiproofs(tree, definition);
 
   return {
     name: definition.name,
@@ -142,6 +169,7 @@ function buildScenarioVector(definition) {
     dump,
     nodePairs,
     leaves,
+    multiproofs,
     ...(definition.notes ? { notes: definition.notes } : {}),
   };
 }
@@ -180,6 +208,28 @@ function toSolidityUintArray(values) {
   ];
 }
 
+function toSolidityNamedUintArray(name, values) {
+  if (values.length === 0) {
+    return [`        uint256[] memory ${name} = new uint256[](0);`];
+  }
+
+  return [
+    `        uint256[] memory ${name} = new uint256[](${values.length});`,
+    ...values.map((value, index) => `        ${name}[${index}] = ${toSolidityUint(value)};`),
+  ];
+}
+
+function toSolidityNamedBoolArray(name, values) {
+  if (values.length === 0) {
+    return [`        bool[] memory ${name} = new bool[](0);`];
+  }
+
+  return [
+    `        bool[] memory ${name} = new bool[](${values.length});`,
+    ...values.map((value, index) => `        ${name}[${index}] = ${value ? "true" : "false"};`),
+  ];
+}
+
 function solidityTestName(input) {
   return input.replace(/[^a-zA-Z0-9]+/g, "_");
 }
@@ -205,6 +255,53 @@ function buildGeneratedParityTest(vectors) {
         "    }",
         "",
       );
+    }
+
+    for (const multiproof of scenario.multiproofs) {
+      lines.push(
+        `    function test_${solidityTestName(scenario.name)}_${solidityTestName(multiproof.name)}_multiproof() external pure {`,
+        `        uint256 root = ${toSolidityUint(scenario.root)};`,
+        `        uint256 wrongRoot = ${toSolidityUint(multiproof.wrongRoot)};`,
+        ...toSolidityNamedUintArray("leaves", multiproof.leafHashes),
+        ...toSolidityUintArray(multiproof.proof),
+        ...toSolidityNamedBoolArray("proofFlags", multiproof.proofFlags),
+        '        require(StrkMerkleProof.verifyMultiProof(root, leaves, proof, proofFlags), "generated multiproof failed");',
+        '        require(!StrkMerkleProof.verifyMultiProof(wrongRoot, leaves, proof, proofFlags), "wrong multiproof root accepted");',
+        "    }",
+        "",
+      );
+
+      if (multiproof.leafHashes.length > 0) {
+        const mutatedLeaves = multiproof.leafHashes.slice();
+        mutatedLeaves[0] = nextHex(mutatedLeaves[0]);
+
+        lines.push(
+          `    function test_${solidityTestName(scenario.name)}_${solidityTestName(multiproof.name)}_rejects_mutated_leaves() external pure {`,
+          `        uint256 root = ${toSolidityUint(scenario.root)};`,
+          ...toSolidityNamedUintArray("leaves", mutatedLeaves),
+          ...toSolidityUintArray(multiproof.proof),
+          ...toSolidityNamedBoolArray("proofFlags", multiproof.proofFlags),
+          '        require(!StrkMerkleProof.verifyMultiProof(root, leaves, proof, proofFlags), "mutated multiproof leaves accepted");',
+          "    }",
+          "",
+        );
+      }
+
+      if (multiproof.proofFlags.length > 0) {
+        lines.push(
+          `    function test_${solidityTestName(scenario.name)}_${solidityTestName(multiproof.name)}_rejects_mutated_flags() external pure {`,
+          `        uint256 root = ${toSolidityUint(scenario.root)};`,
+          ...toSolidityNamedUintArray("leaves", multiproof.leafHashes),
+          ...toSolidityUintArray(multiproof.proof),
+          ...toSolidityNamedBoolArray(
+            "proofFlags",
+            multiproof.proofFlags.map((value, index) => (index === 0 ? !value : value)),
+          ),
+          '        require(!StrkMerkleProof.verifyMultiProof(root, leaves, proof, proofFlags), "mutated multiproof flags accepted");',
+          "    }",
+          "",
+        );
+      }
     }
   }
 
