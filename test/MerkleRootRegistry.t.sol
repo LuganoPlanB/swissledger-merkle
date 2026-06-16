@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {BuildInfo} from "../src/generated/BuildInfo.sol";
 import {MerkleRootRegistry} from "../src/MerkleRootRegistry.sol";
 
 contract UnauthorizedCaller {
@@ -33,6 +34,16 @@ contract MerkleRootRegistryTest {
         bool ok = caller.trySetRoot(registry, root);
 
         require(!ok, "unauthorized root update accepted");
+    }
+
+    function testVersion() external {
+        MerkleRootRegistry registry = new MerkleRootRegistry();
+
+        require(
+            keccak256(bytes(registry.version())) == keccak256(bytes(BuildInfo.VERSION)),
+            "unexpected registry version"
+        );
+    }
     }
 
     function testRejectZeroRoot() external {

@@ -1,14 +1,27 @@
 {
   "name": "swissledger-merkle",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test clients/merkle/*.test.mjs",
+    "generate:build-info": "node scripts/generate-build-info.mjs",
     "generate:vectors": "node clients/merkle/generate-vectors.mjs",
     "merkle:root": "node clients/merkle/merkle-root.mjs",
-    "merkle:proof": "node clients/merkle/merkle-proof.mjs"
+    "merkle:proof": "node clients/merkle/merkle-proof.mjs",
+    "release": "semantic-release"
   },
   "dependencies": {
     "@ericnordelo/strk-merkle-tree": "1.0.1"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.6",
+    "@semantic-release/npm": "^12.0.2",
+    "@semantic-release/release-notes-generator": "^14.1.0",
+    "semantic-release": "^25.0.5"
   }
 }
