@@ -5,3 +5,5 @@ solidity
 solc
 .gestalt
 node_modules
+cache
+out
