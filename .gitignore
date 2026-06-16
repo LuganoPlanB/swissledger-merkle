@@ -3,3 +3,5 @@ evm-*.json
 evm-*.txt
 solidity
 solc
+.gestalt
+node_modules

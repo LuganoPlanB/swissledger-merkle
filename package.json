@@ -1,0 +1,12 @@
+{
+  "name": "swissledger-up",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test clients/merkle/*.test.mjs",
+    "generate:vectors": "node clients/merkle/generate-vectors.mjs"
+  },
+  "dependencies": {
+    "@ericnordelo/strk-merkle-tree": "1.0.1"
+  }
+}
