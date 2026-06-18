@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.2.0...v1.3.0) (2026-06-18)
+
+
+### Features
+
+* **merkle:** add public CLI and client README ([a98ed3d](https://github.com/LuganoPlanB/swissledger-merkle/commit/a98ed3d99d7babb03d6ef051f74709ee8eca35fd))
+
 # [1.2.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.1.0...v1.2.0) (2026-06-16)
 
 
