@@ -7,6 +7,10 @@
     "test": "node --test clients/merkle/*.test.mjs",
     "generate:build-info": "node scripts/generate-build-info.mjs",
     "generate:vectors": "node clients/merkle/generate-vectors.mjs",
+    "merkle": "node clients/merkle/merkle-cli.mjs",
+    "create-merkle-root": "node clients/merkle/merkle-cli.mjs root",
+    "create-merkle-proofs": "node clients/merkle/merkle-cli.mjs proofs",
+    "verify-merkle-proof": "node clients/merkle/merkle-cli.mjs verify",
     "merkle:root": "node clients/merkle/merkle-root.mjs",
     "merkle:proof": "node clients/merkle/merkle-proof.mjs",
     "release": "semantic-release"
