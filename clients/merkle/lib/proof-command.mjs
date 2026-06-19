@@ -1,4 +1,4 @@
-import { StandardMerkleTree } from "@ericnordelo/strk-merkle-tree";
+import { StandardMerkleTree } from "./strk-merkle-tree.mjs";
 
 export function buildProofResponse(request, dump) {
   const tree = StandardMerkleTree.load(dump);

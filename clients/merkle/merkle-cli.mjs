@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { StandardMerkleTree } from "@ericnordelo/strk-merkle-tree";
+import { StandardMerkleTree } from "./lib/strk-merkle-tree.mjs";
 
 const DEFAULT_LEAF_ENCODING = ["felt252"];
 

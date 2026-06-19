@@ -16,7 +16,11 @@
     "release": "semantic-release"
   },
   "dependencies": {
-    "@ericnordelo/strk-merkle-tree": "1.0.1"
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/bytes": "^5.7.0",
+    "@ethersproject/constants": "^5.7.0",
+    "@ethersproject/keccak256": "^5.7.0",
+    "starknet": "^6.11.0"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",

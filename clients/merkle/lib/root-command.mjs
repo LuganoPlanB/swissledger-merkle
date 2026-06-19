@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
-import { StandardMerkleTree } from "@ericnordelo/strk-merkle-tree";
+import { StandardMerkleTree } from "./strk-merkle-tree.mjs";
 
 export function buildRootResponse(request, requestPath) {
   const tree = StandardMerkleTree.of(request.values, request.leafEncoding);

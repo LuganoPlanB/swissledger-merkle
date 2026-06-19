@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { StandardMerkleTree } from "@ericnordelo/strk-merkle-tree";
+import { StandardMerkleTree } from "./lib/strk-merkle-tree.mjs";
 import {
   buildCanonicalVectors,
   canonicalVectorsPath,

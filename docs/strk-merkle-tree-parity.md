@@ -1,6 +1,8 @@
 # strk-merkle-tree parity
 
 `@ericnordelo/strk-merkle-tree@1.0.1` is the canonical Merkle blueprint for this repository.
+Its source is vendored under `vendor/strk-merkle-tree/` and refreshed with
+`scripts/vendor-strk-merkle-tree.sh`.
 
 This repository does not define an alternative tree format.
 The Solidity verifier, local client, fixtures, and end-to-end tests must match
