@@ -67,7 +67,10 @@ class FixProxy(http.server.BaseHTTPRequestHandler):
             self.send_response(resp.status_code)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps(result_data).encode())
+            try:
+                self.wfile.write(json.dumps(result_data).encode())
+            except (BrokenPipeError, ConnectionResetError):
+                pass
         except requests.RequestException as e:
             self._respond(502, _rpc_err(-32603, str(e)))
 
