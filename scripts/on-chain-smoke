@@ -115,7 +115,7 @@ else
         --gas-price 0 \
         --legacy \
         --broadcast \
-        --json >"${DEPLOY_JSON}" 2>/dev/null
+        --json >"${DEPLOY_JSON}"
     CONTRACT_ADDRESS=$(node -e '
         const d = JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
         process.stdout.write(d.deployedTo);
