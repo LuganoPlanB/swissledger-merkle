@@ -47,4 +47,3 @@ jobs:
         run: ./scripts/on-chain-smoke
         env:
           SWISSLEDGER_TESTING_KEY: ${{ secrets.SWISSLEDGER_TESTING_KEY }}
-        continue-on-error: true

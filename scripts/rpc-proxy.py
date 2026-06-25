@@ -60,10 +60,7 @@ class FixProxy(http.server.BaseHTTPRequestHandler):
             req = urllib.request.Request(
                 self.server.target_url,
                 data=fixed_body.encode(),
-                headers={
-                    "Content-Type": "application/json",
-                    "User-Agent": "Mozilla/5.0 (compatible; foundry-rpc-proxy/1.0)",
-                },
+                headers={"Content-Type": "application/json"},
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
                 result_data = normalize_response(json.loads(resp.read()))
