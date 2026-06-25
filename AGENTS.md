@@ -90,8 +90,14 @@ The Blockscout `/api/eth-rpc` endpoint requires every JSON-RPC request to
 include the `"params"` field (even when empty) and returns non-standard error
 responses (plain strings instead of `{"code":…,"message":…}`).
 
-The forked `swissledger-{forge,cast,anvil}` binaries handle both quirks natively —
-all commands talk to the chain directly with no workaround needed.
+The forked `swissledger-{forge,cast,anvil}` binaries are used for local
+build and test.  For on-chain RPC calls, the proxy `scripts/rpc-proxy.py`
+handles both quirks transparently — all `forge`/`cast` commands go through it.
+
+```bash
+python3 scripts/rpc-proxy.py 8545 https://explorer.ledger.swiss/api/eth-rpc &
+# Then point forge/cast at http://127.0.0.1:8545
+```
 
 ### Deploying to ledger.swiss
 
@@ -106,9 +112,12 @@ Steps:
 # 1. Compile for the chain's EVM level
 forge build --evm-version london
 
-# 2. Deploy directly (swissledger-forge handles RPC quirks natively)
+# 2. Start the RPC proxy (handles mandatory params + non-standard errors)
+python3 scripts/rpc-proxy.py 8545 https://explorer.ledger.swiss/api/eth-rpc &
+
+# 3. Deploy through the proxy
 forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
-  --rpc-url https://explorer.ledger.swiss/api/eth-rpc \
+  --rpc-url http://127.0.0.1:8545 \
   --private-key "0x…" \
   --gas-limit 3000000 \
   --gas-price 0 \

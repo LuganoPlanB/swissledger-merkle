@@ -8,8 +8,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      FOUNDRY_REPO: LuganoPlanB/swissledger-foundry
-      GH_TOKEN: ${{ github.token }}
+      FOUNDRY_BASE: https://github.com/LuganoPlanB/swissledger-foundry/releases/download/v1.8.1
 
     steps:
       - uses: actions/checkout@v4
@@ -25,17 +24,17 @@ jobs:
       - name: Download swissledger-forge
         run: |
           mkdir -p bin
-          gh release download --repo "$FOUNDRY_REPO" --pattern 'swissledger-forge' --output bin/swissledger-forge
+          curl -fL -o bin/swissledger-forge "$FOUNDRY_BASE/swissledger-forge"
           chmod +x bin/swissledger-forge
 
       - name: Download swissledger-cast
         run: |
-          gh release download --repo "$FOUNDRY_REPO" --pattern 'swissledger-cast' --output bin/swissledger-cast
+          curl -fL -o bin/swissledger-cast "$FOUNDRY_BASE/swissledger-cast"
           chmod +x bin/swissledger-cast
 
       - name: Download swissledger-anvil
         run: |
-          gh release download --repo "$FOUNDRY_REPO" --pattern 'swissledger-anvil' --output bin/swissledger-anvil
+          curl -fL -o bin/swissledger-anvil "$FOUNDRY_BASE/swissledger-anvil"
           chmod +x bin/swissledger-anvil
 
       - name: Generate local keyring

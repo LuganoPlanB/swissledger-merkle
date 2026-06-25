@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+RPC_PROXY_PORT=8545
+RPC_PROXY_URL="http://127.0.0.1:${RPC_PROXY_PORT}"
 CHAIN_RPC="https://explorer.ledger.swiss/api/eth-rpc"
 FORGE="${FORGE:-${ROOT_DIR}/bin/swissledger-forge}"
 CAST="${CAST:-${ROOT_DIR}/bin/swissledger-cast}"
@@ -11,12 +13,17 @@ PRIVATE_KEY="${SWISSLEDGER_TESTING_KEY:-$(<"${ROOT_DIR}/evm-private-key.txt")}"
 REUSE_ADDRESS="${1:-}"
 
 TMP_DIR=$(mktemp -d)
+PROXY_PID=""
 
 declare -A _TICKS
 declare -a _STEPS
 _CURRENT_STEP=""
 
 cleanup() {
+    if [[ -n "${PROXY_PID:-}" ]]; then
+        kill "${PROXY_PID}" >/dev/null 2>&1 || true
+        wait "${PROXY_PID}" >/dev/null 2>&1 || true
+    fi
     rm -rf "${TMP_DIR}"
 }
 trap cleanup EXIT
@@ -62,7 +69,7 @@ echo ""
 # ---- L2 A1: Build ----
 
 tick "build (london)"
-echo "[1/5] Building MerkleRootRegistry for ${EVM_VERSION} EVM..."
+echo "[1/6] Building MerkleRootRegistry for ${EVM_VERSION} EVM..."
 "${FORGE}" build >/dev/null 2>&1
 
 BYTECODE=$("${FORGE}" inspect MerkleRootRegistry bytecode)
@@ -95,27 +102,42 @@ fi
 echo "  OK: PUSH0=${PUSH0_COUNT} MCOPY=${MCOPY_COUNT}"
 tock
 
-# ---- L2 A2: Deploy or reuse ----
+# ---- L2 A2: Proxy ----
+
+tick "proxy start"
+echo "[2/6] Starting RPC proxy on ${RPC_PROXY_URL}..."
+python3 "${ROOT_DIR}/scripts/rpc-proxy.py" \
+    "${RPC_PROXY_PORT}" "${CHAIN_RPC}" &
+PROXY_PID=$!
+for _ in $(seq 1 10); do
+    if curl -s "${RPC_PROXY_URL}" >/dev/null 2>&1; then break; fi
+    sleep 0.5
+done
+"${CAST}" block-number --rpc-url "${RPC_PROXY_URL}" >/dev/null
+echo "  OK"
+tock
+
+# ---- L2 A3: Deploy or reuse ----
 
 if [[ -n "${REUSE_ADDRESS}" ]]; then
     tick "deploy (reuse ${REUSE_ADDRESS})"
-    echo "[2/5] Using existing contract at ${REUSE_ADDRESS}..."
-    VERSION=$("${CAST}" call --rpc-url "${CHAIN_RPC}" "${REUSE_ADDRESS}" "version()(string)")
+    echo "[3/6] Using existing contract at ${REUSE_ADDRESS}..."
+    VERSION=$("${CAST}" call --rpc-url "${RPC_PROXY_URL}" "${REUSE_ADDRESS}" "version()(string)")
     echo "  OK: version=${VERSION}"
     CONTRACT_ADDRESS="${REUSE_ADDRESS}"
     tock "skipped"
 else
     tick "deploy"
-    echo "[2/5] Deploying MerkleRootRegistry to ledger.swiss..."
+    echo "[3/6] Deploying MerkleRootRegistry to ledger.swiss..."
     DEPLOY_JSON="${TMP_DIR}/deploy.json"
     "${FORGE}" create "${ROOT_DIR}/src/MerkleRootRegistry.sol:MerkleRootRegistry" \
-        --rpc-url "${CHAIN_RPC}" \
+        --rpc-url "${RPC_PROXY_URL}" \
         --private-key "${PRIVATE_KEY}" \
         --gas-limit 5000000 \
         --gas-price 0 \
         --legacy \
         --broadcast \
-        --json >"${DEPLOY_JSON}"
+        --json >"${DEPLOY_JSON}" 2>/dev/null
     CONTRACT_ADDRESS=$(node -e '
         const d = JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
         process.stdout.write(d.deployedTo);
@@ -129,10 +151,10 @@ else
     tock
 fi
 
-# ---- L2 B3: Tree + proof ----
+# ---- L2 B4: Tree + proof ----
 
 tick "tree + proof"
-echo "[3/5] Building Merkle tree and generating proof..."
+echo "[4/6] Building Merkle tree and generating proof..."
 
 REQUEST_JSON="${TMP_DIR}/request.json"
 ROOT_JSON="${TMP_DIR}/root.json"
@@ -168,12 +190,12 @@ echo "  Root:     ${ROOT}"
 echo "  LeafHash: ${LEAF_HASH}"
 tock
 
-# ---- L2 A4: Set root + verify ----
+# ---- L2 A5: Set root + verify ----
 
 tick "setActiveRoot"
-echo "[4/5] Setting active root on chain..."
+echo "[5/6] Setting active root on chain..."
 "${CAST}" send "${CONTRACT_ADDRESS}" "setActiveRoot(bytes32)" "${ROOT}" \
-    --rpc-url "${CHAIN_RPC}" \
+    --rpc-url "${RPC_PROXY_URL}" \
     --private-key "${PRIVATE_KEY}" \
     --gas-limit 200000 --gas-price 0 --legacy >/dev/null
 echo "  OK: root set"
@@ -181,7 +203,7 @@ tock
 
 tick "verify valid proof"
 VALID_CALLDATA=$(encode_call "${LEAF_HASH}" "${PROOF_JSON_STR}")
-VALID_RESULT=$("${CAST}" call "${CONTRACT_ADDRESS}" "${VALID_CALLDATA}" --rpc-url "${CHAIN_RPC}")
+VALID_RESULT=$("${CAST}" call "${CONTRACT_ADDRESS}" "${VALID_CALLDATA}" --rpc-url "${RPC_PROXY_URL}")
 if [[ "${VALID_RESULT}" == *"1" ]]; then
     echo "  PASS: valid proof verified"
     tock "pass"
@@ -192,7 +214,7 @@ fi
 
 tick "verify invalid proof"
 INVALID_CALLDATA=$(encode_call "${INVALID_LEAF_HASH}" "${PROOF_JSON_STR}")
-INVALID_RESULT=$("${CAST}" call "${CONTRACT_ADDRESS}" "${INVALID_CALLDATA}" --rpc-url "${CHAIN_RPC}")
+INVALID_RESULT=$("${CAST}" call "${CONTRACT_ADDRESS}" "${INVALID_CALLDATA}" --rpc-url "${RPC_PROXY_URL}")
 if [[ "${INVALID_RESULT}" != *"1" ]]; then
     echo "  PASS: invalid proof rejected"
     tock "pass"
@@ -201,7 +223,7 @@ else
     tock "fail"
 fi
 
-# ---- L2 B5: Timing summary ----
+# ---- L2 B6: Timing summary ----
 
 echo ""
 echo "============================================"
