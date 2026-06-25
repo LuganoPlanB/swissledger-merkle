@@ -90,8 +90,9 @@ The Blockscout `/api/eth-rpc` endpoint requires every JSON-RPC request to
 include the `"params"` field (even when empty) and returns non-standard error
 responses (plain strings instead of `{"code":…,"message":…}`).
 
-The forked `swissledger-{forge,cast,anvil}` binaries handle both quirks natively —
-all commands talk to the chain directly with no workaround needed.
+The forked `swissledger-{forge,cast,anvil}` binaries must apply the fixes
+described in [FOUNDRY.md](./FOUNDRY.md).  Until then, the RPC proxy
+(`scripts/rpc-proxy.py`) is required for on-chain operations.
 
 ### Deploying to ledger.swiss
 
