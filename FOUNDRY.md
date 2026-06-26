@@ -1,15 +1,16 @@
-# swissledger-cast — Fixes Required for ledger.swiss (chain id 110)
+# swissledger-cast — Fixes for ledger.swiss (chain id 110)
 
 This document describes every RPC incompatibility between upstream
-Foundry (`forge`, `cast`) and the SwissLedger chain (id 110).  These
-must be fixed in the forked binaries published at
-<https://github.com/LuganoPlanB/swissledger-foundry/releases>.
+Foundry (`forge`, `cast`) and the SwissLedger chain (id 110).
 
 Reference version: **Foundry 1.7.1** (commit `4072e48705`).
+Fork build: `1.7.1-swissledger` (commit `455177e`).
+
+Status of each fix: ✅ = applied in fork, ❌ = pending.
 
 ---
 
-## P0: JSON-RPC request must always include `"params"`
+## P0: JSON-RPC request must always include `"params"` ✅
 
 ### Problem
 
@@ -45,7 +46,7 @@ For methods with no arguments, emit `"params":[]`.
 
 ---
 
-## P0: Accept non-standard error response format
+## P0: Accept non-standard error response format ✅
 
 ### Problem
 
