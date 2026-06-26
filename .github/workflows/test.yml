@@ -1,33 +1,50 @@
 name: test
 
 on:
-  push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      FOUNDRY_REPO: LuganoPlanB/swissledger-foundry
+      GH_TOKEN: ${{ github.token }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
 
-      - name: Setup Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
-
       - name: Install Node dependencies
         run: npm ci
+
+      - name: Download swissledger-forge
+        run: |
+          mkdir -p bin
+          gh release download --repo "$FOUNDRY_REPO" --pattern 'swissledger-forge' --output bin/swissledger-forge
+          chmod +x bin/swissledger-forge
+
+      - name: Download swissledger-cast
+        run: |
+          gh release download --repo "$FOUNDRY_REPO" --pattern 'swissledger-cast' --output bin/swissledger-cast
+          chmod +x bin/swissledger-cast
+
+      - name: Download swissledger-anvil
+        run: |
+          gh release download --repo "$FOUNDRY_REPO" --pattern 'swissledger-anvil' --output bin/swissledger-anvil
+          chmod +x bin/swissledger-anvil
 
       - name: Generate local keyring
         run: ./scripts/keygen
 
       - name: Run full test surface
         run: make test-all
+
+      - name: On-chain smoke (ledger.swiss)
+        run: ./scripts/on-chain-smoke
+        env:
+          SWISSLEDGER_TESTING_KEY: ${{ secrets.SWISSLEDGER_TESTING_KEY }}

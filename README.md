@@ -147,6 +147,29 @@ Regenerate the Solidity build version file only:
 make generate-build-info
 ```
 
+## On-Chain Smoke
+
+Run the full end-to-end flow against the live SwissLedger chain (id 110):
+
+```bash
+./scripts/on-chain-smoke                          # deploy fresh contract
+./scripts/on-chain-smoke 0x20f89...1888b          # reuse existing contract
+```
+
+Compiles for pre-Shanghai EVM, deploys `MerkleRootRegistry`, sets a Merkle root,
+and verifies both valid and invalid proofs on-chain. Every operation is timed.
+
+Typical timings (ledger.swiss, Jun 2026):
+
+| step                |    ms | status  |
+|---------------------|-------|---------|
+| build (london)      |   165 | ok      |
+| deploy              | 8,000 | ok      |
+| tree + proof        |   451 | ok      |
+| setActiveRoot        | 6,550 | ok      |
+| verify valid proof  |   287 | pass    |
+| verify invalid proof|   300 | pass    |
+
 # Licensing
 
 Swissledger Merkle is Copyright (C) 2026 PlanB Foundation

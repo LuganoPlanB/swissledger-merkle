@@ -84,88 +84,14 @@ print(f'PUSH0: {push0}, MCOPY: {mcopy}')
 "
 ```
 
-### RPC quirk: mandatory `params` field
+### RPC quirks: `params` field + non-standard errors
 
 The Blockscout `/api/eth-rpc` endpoint requires every JSON-RPC request to
-include the `"params"` field, even when empty.  Standard JSON-RPC 2.0 allows
-omitting it, so `forge` and `cast` skip `params` for zero-param methods
-(`eth_blockNumber`, `eth_chainId`, `eth_gasPrice`, etc.).
+include the `"params"` field (even when empty) and returns non-standard error
+responses (plain strings instead of `{"code":…,"message":…}`).
 
-This causes any `forge`/`cast` command that calls those methods to fail with:
-
-```
-deserialization error: invalid type: string "Method, params, and jsonrpc,
-are all required parameters.", expected a JSON-RPC 2.0 error object
-```
-
-**Workaround A — manual deploy with `cast mktx` + `cast publish`**:
-
-1. Create the signed tx against a **local mock** that returns compliant responses:
-
-```bash
-# Start mock RPC on port 9990 (one request then exits):
-python3 -c "
-import http.server, json, threading, time
-
-class P(http.server.BaseHTTPRequestHandler):
-    def do_POST(self):
-        body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
-        data = json.loads(body)
-        method = data.get('method', '')
-        if method == 'eth_getTransactionCount':
-            # return the correct nonce from the chain
-            result = '0x4'
-        else:
-            result = '0x0'
-        resp = {'jsonrpc':'2.0','result':result,'id':data.get('id',0)}
-        self.send_response(200)
-        self.send_header('Content-Type', 'application/json')
-        self.end_headers()
-        self.wfile.write(json.dumps(resp).encode())
-    def log_message(self, *a): pass
-
-s = http.server.HTTPServer(('127.0.0.1', 9990), P)
-threading.Thread(target=s.handle_request, daemon=True).start()
-time.sleep(0.1)
-" &
-
-SIGNED_TX=$(cast mktx \
-  --rpc-url http://127.0.0.1:9990 \
-  --private-key "0x…" \
-  --gas-limit 3000000 \
-  --gas-price 0 \
-  --legacy \
-  --nonce 4 \
-  --chain 110 \
-  --create "$BYTECODE")
-
-cast publish --rpc-url https://explorer.ledger.swiss/api/eth-rpc "$SIGNED_TX"
-```
-
-2. `cast publish` only calls `eth_sendRawTransaction` (which has params), so it
-   works directly against the real RPC.
-
-**Workaround B — RPC params-injection proxy**:
-
-The script `scripts/rpc-proxy.py` intercepts every JSON-RPC request and injects
-`"params":[]` if the field is missing, then forwards to the real endpoint:
-
-```bash
-# Terminal 1
-python3 scripts/rpc-proxy.py
-# Listens on http://127.0.0.1:8545 → https://explorer.ledger.swiss/api/eth-rpc
-
-# Terminal 2 — all forge/cast commands now work normally
-forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
-  --rpc-url http://127.0.0.1:8545 \
-  --private-key "0x…" \
-  --legacy \
-  --broadcast
-```
-
-The proxy also handles the chain's non-standard error responses (plain string
-`"error"` instead of `{"code":…, "message":…}` format expected by JSON-RPC 2.0),
-which would otherwise cause deserialization errors in `forge`/`cast`.
+The forked `swissledger-{forge,cast,anvil}` binaries handle both quirks natively
+(build `1.7.1-swissledger` onwards).  No proxy or workaround needed.
 
 ### Deploying to ledger.swiss
 
@@ -180,29 +106,14 @@ Steps:
 # 1. Compile for the chain's EVM level
 forge build --evm-version london
 
-# 2. Get bytecode
-BYTECODE=$(forge inspect MerkleRootRegistry bytecode)
-
-# 3. Create and send the deployment tx
-#    (uses the mock-RPC trick; see Workaround A above)
-#    Set NONCE to the current on-chain nonce:
-#    curl -s -X POST "https://explorer.ledger.swiss/api/eth-rpc" \
-#      -H "Content-Type: application/json" \
-#      -d '{"jsonrpc":"2.0","method":"eth_getTransactionCount","params":["0x…","latest"],"id":1}'
-
-SIGNED_TX=$(cast mktx \
-  --rpc-url http://127.0.0.1:9990 \
+# 2. Deploy directly (swissledger-forge handles RPC quirks natively)
+forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
+  --rpc-url https://explorer.ledger.swiss/api/eth-rpc \
   --private-key "0x…" \
   --gas-limit 3000000 \
   --gas-price 0 \
   --legacy \
-  --nonce "$NONCE" \
-  --chain 110 \
-  --create "$BYTECODE")
-
-cast publish \
-  --rpc-url https://explorer.ledger.swiss/api/eth-rpc \
-  "$SIGNED_TX"
+  --broadcast
 ```
 
 **Important**:
@@ -271,6 +182,8 @@ forge flatten src/MerkleRootRegistry.sol > /tmp/MerkleRootRegistry_flattened.sol
 ## Dependencies
 
 - **Node 24** with ESM modules
-- **Foundry** (`forge` + `cast`), installed by `scripts/install-deps`
+- **swissledger-forge** (forked Foundry for ledger.swiss compatibility), fetched
+  from `https://github.com/LuganoPlanB/swissledger-foundry/releases` into `bin/`
+- **cast** + **anvil** from system Foundry (installed by `scripts/install-deps`)
 - **Zenroom** + **Slangroom** (see `mise.toml`)
 - No `ethers`/`hardhat`/`truffle` — Foundry-only for Solidity

@@ -1,0 +1,219 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+CHAIN_RPC="https://explorer.ledger.swiss/api/eth-rpc"
+FORGE="${FORGE:-${ROOT_DIR}/bin/swissledger-forge}"
+CAST="${CAST:-${ROOT_DIR}/bin/swissledger-cast}"
+EVM_VERSION="${EVM_VERSION:-london}"
+export FOUNDRY_PROFILE="${EVM_VERSION}"
+PRIVATE_KEY="${SWISSLEDGER_TESTING_KEY:-$(<"${ROOT_DIR}/evm-private-key.txt")}"
+REUSE_ADDRESS="${1:-}"
+
+TMP_DIR=$(mktemp -d)
+
+declare -A _TICKS
+declare -a _STEPS
+_CURRENT_STEP=""
+
+cleanup() {
+    rm -rf "${TMP_DIR}"
+}
+trap cleanup EXIT
+
+# --- timing helpers ---
+
+tick() { _CURRENT_STEP="$1"; _TICKS["${_CURRENT_STEP}"]=$(date +%s%N); }
+
+tock() {
+    local status="${1:-ok}"
+    local start="${_TICKS[${_CURRENT_STEP}]}"
+    local now; now=$(date +%s%N)
+    local elapsed_ms=$(( (now - start) / 1000000 ))
+    _STEPS+=("${_CURRENT_STEP}|${elapsed_ms}|${status}")
+}
+
+# --- calldata encoder (works around cast parser bug with bytes32[]) ---
+
+encode_call() {
+    local leaf_hash="$1"
+    local proof_json="$2"
+    node -e '
+        const { AbiCoder } = require("@ethersproject/abi");
+        const { hexZeroPad } = require("@ethersproject/bytes");
+        const coder = new AbiCoder();
+        const selector = "000aa4d2";
+        const leafHash = process.argv[1];
+        const proof = JSON.parse(process.argv[2]).map(p => hexZeroPad(p, 32));
+        const args = coder.encode(["bytes32", "bytes32[]"], [leafHash, proof]);
+        process.stdout.write("0x" + selector + args.slice(2));
+    ' "${leaf_hash}" "${proof_json}"
+}
+
+# --- main ---
+
+echo "============================================"
+echo " SwissLedger on-chain smoke test"
+echo " RPC: ${CHAIN_RPC}"
+echo " EVM: ${EVM_VERSION}"
+echo "============================================"
+echo ""
+
+# ---- L2 A1: Build ----
+
+tick "build (london)"
+echo "[1/5] Building MerkleRootRegistry for ${EVM_VERSION} EVM..."
+"${FORGE}" build >/dev/null 2>&1
+
+BYTECODE=$("${FORGE}" inspect MerkleRootRegistry bytecode)
+PUSH0_COUNT=$(python3 -c "
+b = '${BYTECODE}'[2:]
+i, p0 = 0, 0
+while i < len(b):
+    op = int(b[i:i+2], 16)
+    if op == 0x5f: p0 += 1; i += 2
+    elif 0x60 <= op <= 0x7f: i += 2 + (op - 0x5f) * 2
+    else: i += 2
+print(p0)
+")
+MCOPY_COUNT=$(python3 -c "
+b = '${BYTECODE}'[2:]
+i, mc = 0, 0
+while i < len(b):
+    op = int(b[i:i+2], 16)
+    if op == 0x5e: mc += 1; i += 2
+    elif 0x60 <= op <= 0x7f: i += 2 + (op - 0x5f) * 2
+    else: i += 2
+print(mc)
+")
+
+if [[ "${PUSH0_COUNT}" -ne 0 || "${MCOPY_COUNT}" -ne 0 ]]; then
+    echo "  FAIL: forbidden opcodes (PUSH0=${PUSH0_COUNT} MCOPY=${MCOPY_COUNT})"
+    tock "fail"
+    exit 1
+fi
+echo "  OK: PUSH0=${PUSH0_COUNT} MCOPY=${MCOPY_COUNT}"
+tock
+
+# ---- L2 A2: Deploy or reuse ----
+
+if [[ -n "${REUSE_ADDRESS}" ]]; then
+    tick "deploy (reuse ${REUSE_ADDRESS})"
+    echo "[2/5] Using existing contract at ${REUSE_ADDRESS}..."
+    VERSION=$("${CAST}" call --rpc-url "${CHAIN_RPC}" "${REUSE_ADDRESS}" "version()(string)")
+    echo "  OK: version=${VERSION}"
+    CONTRACT_ADDRESS="${REUSE_ADDRESS}"
+    tock "skipped"
+else
+    tick "deploy"
+    echo "[2/5] Deploying MerkleRootRegistry to ledger.swiss..."
+    DEPLOY_JSON="${TMP_DIR}/deploy.json"
+    "${FORGE}" create "${ROOT_DIR}/src/MerkleRootRegistry.sol:MerkleRootRegistry" \
+        --rpc-url "${CHAIN_RPC}" \
+        --private-key "${PRIVATE_KEY}" \
+        --gas-limit 5000000 \
+        --gas-price 0 \
+        --legacy \
+        --broadcast \
+        --json >"${DEPLOY_JSON}"
+    CONTRACT_ADDRESS=$(node -e '
+        const d = JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+        process.stdout.write(d.deployedTo);
+    ' "${DEPLOY_JSON}")
+    TX_HASH=$(node -e '
+        const d = JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+        process.stdout.write(d.transactionHash);
+    ' "${DEPLOY_JSON}")
+    echo "  Contract: ${CONTRACT_ADDRESS}"
+    echo "  TX:       ${TX_HASH}"
+    tock
+fi
+
+# ---- L2 B3: Tree + proof ----
+
+tick "tree + proof"
+echo "[3/5] Building Merkle tree and generating proof..."
+
+REQUEST_JSON="${TMP_DIR}/request.json"
+ROOT_JSON="${TMP_DIR}/root.json"
+PROOF_JSON="${TMP_DIR}/proof.json"
+
+printf '%s\n' \
+    '{' \
+    '  "leafEncoding": ["ContractAddress", "u128"],' \
+    '  "values": [' \
+    '    ["0x1111111111111111111111111111111111111111", "5"],' \
+    '    ["0x2222222222222222222222222222222222222222", "10"],' \
+    '    ["0x3333333333333333333333333333333333333333", "15"]' \
+    '  ]' \
+    '}' >"${REQUEST_JSON}"
+
+node "${ROOT_DIR}/clients/merkle/merkle-root.mjs" "${REQUEST_JSON}" >"${ROOT_JSON}"
+TREE_PATH=$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(d.treePath)' "${ROOT_JSON}")
+ROOT=$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(d.root)' "${ROOT_JSON}")
+
+PROOF_REQUEST_JSON="${TMP_DIR}/proof-request.json"
+printf '{"treePath":"%s","leafIndex":0}' "${TREE_PATH}" >"${PROOF_REQUEST_JSON}"
+node "${ROOT_DIR}/clients/merkle/merkle-proof.mjs" "${PROOF_REQUEST_JSON}" >"${PROOF_JSON}"
+
+LEAF_HASH=$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(d.leafHash)' "${PROOF_JSON}")
+INVALID_LEAF_HASH=$(node -e '
+    const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));
+    const lh=BigInt(d.leafHash);
+    process.stdout.write("0x"+(lh+1n).toString(16).padStart(64,"0"));
+' "${PROOF_JSON}")
+PROOF_JSON_STR=$(node -e 'const d=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));process.stdout.write(JSON.stringify(d.proof))' "${PROOF_JSON}")
+
+echo "  Root:     ${ROOT}"
+echo "  LeafHash: ${LEAF_HASH}"
+tock
+
+# ---- L2 A4: Set root + verify ----
+
+tick "setActiveRoot"
+echo "[4/5] Setting active root on chain..."
+"${CAST}" send "${CONTRACT_ADDRESS}" "setActiveRoot(bytes32)" "${ROOT}" \
+    --rpc-url "${CHAIN_RPC}" \
+    --private-key "${PRIVATE_KEY}" \
+    --gas-limit 200000 --gas-price 0 --legacy >/dev/null
+echo "  OK: root set"
+tock
+
+tick "verify valid proof"
+VALID_CALLDATA=$(encode_call "${LEAF_HASH}" "${PROOF_JSON_STR}")
+VALID_RESULT=$("${CAST}" call "${CONTRACT_ADDRESS}" "${VALID_CALLDATA}" --rpc-url "${CHAIN_RPC}")
+if [[ "${VALID_RESULT}" == *"1" ]]; then
+    echo "  PASS: valid proof verified"
+    tock "pass"
+else
+    echo "  FAIL: valid proof returned ${VALID_RESULT}"
+    tock "fail"
+fi
+
+tick "verify invalid proof"
+INVALID_CALLDATA=$(encode_call "${INVALID_LEAF_HASH}" "${PROOF_JSON_STR}")
+INVALID_RESULT=$("${CAST}" call "${CONTRACT_ADDRESS}" "${INVALID_CALLDATA}" --rpc-url "${CHAIN_RPC}")
+if [[ "${INVALID_RESULT}" != *"1" ]]; then
+    echo "  PASS: invalid proof rejected"
+    tock "pass"
+else
+    echo "  FAIL: invalid proof returned ${INVALID_RESULT}"
+    tock "fail"
+fi
+
+# ---- L2 B5: Timing summary ----
+
+echo ""
+echo "============================================"
+echo " Timing Summary"
+echo "============================================"
+printf "  %-28s %8s  %s\n" "step" "ms" "status"
+printf "  %-28s %8s  %s\n" "-------------------------" "--------" "------"
+for entry in "${_STEPS[@]}"; do
+    IFS='|' read -r step ms status <<<"${entry}"
+    printf "  %-28s %8s  %s\n" "${step}" "${ms}" "${status}"
+done
+echo "============================================"
+echo " Contract: ${CONTRACT_ADDRESS}"
+echo " Explorer: https://explorer.ledger.swiss/address/${CONTRACT_ADDRESS}"
+echo "============================================"
