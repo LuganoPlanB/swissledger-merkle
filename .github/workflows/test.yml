@@ -5,67 +5,62 @@ on:
     branches: [main, master]
   pull_request:
 
-env:
-  RPC_URL: ${{ secrets.SWISSLEDGER_TESTNET_ADDRESS }}
-  CHAIN_ID: 222
-
 jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
-
-      - uses: LuganoPlanB/swissledger-foundry/.github/actions/setup@main
-
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: stable }
       - run: npm ci
-
       - name: Forge build + test
         run: |
           forge clean
           node scripts/generate-build-info.mjs
-          forge build
+          forge build --evm-version london
           forge test -vvv
-
       - name: Node client tests
         run: node --test clients/merkle/*.test.mjs
 
   smoke:
     needs: unit
     runs-on: ubuntu-latest
-    if: ${{ secrets.SWISSLEDGER_TESTNET_ADDRESS != '' }}
+    env:
+      RPC_URL: ${{ secrets.SWISSLEDGER_TESTNET_ADDRESS }}
+      PRIVATE_KEY: ${{ secrets.SWISSLEDGER_TESTNET_DEPLOY }}
+      CHAIN_ID: 222
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
-
-      - uses: LuganoPlanB/swissledger-foundry/.github/actions/setup@main
-
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: stable }
       - run: npm ci
       - run: node scripts/generate-build-info.mjs
-      - run: forge build
+      - run: forge build --evm-version london
+
+      - name: Check secrets
+        run: |
+          if [ -z "$RPC_URL" ] || [ -z "$PRIVATE_KEY" ]; then
+            echo "SKIP: testnet secrets not configured"
+            exit 0
+          fi
 
       - name: Deploy to testnet
-        env:
-          PRIVATE_KEY: ${{ secrets.SWISSLEDGER_TESTNET_DEPLOY }}
         run: |
           forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
-            --rpc-url "$RPC_URL" \
-            --private-key "$PRIVATE_KEY" \
+            --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" \
             --legacy --gas-price 0 --chain "$CHAIN_ID" \
             --broadcast --json > deploy.json
           echo "addr=$(jq -r .deployedTo deploy.json)" >> "$GITHUB_OUTPUT"
         id: deploy
 
       - name: Smoke — set root and verify leaf
-        env:
-          PRIVATE_KEY: ${{ secrets.SWISSLEDGER_TESTNET_DEPLOY }}
         run: |
+          if [ -z "$RPC_URL" ]; then echo "SKIP: no RPC"; exit 0; fi
           ADDR="${{ steps.deploy.outputs.addr }}"
-
           VALUES='["0x1111111111111111111111111111111111111111111111111111111111111111","0x2222222222222222222222222222222222222222222222222222222222222222"]'
           ROOT=$(npm run --silent create-merkle-root -- "$VALUES")
           LEAF=0x1111111111111111111111111111111111111111111111111111111111111111
