@@ -2,32 +2,89 @@ name: test
 
 on:
   push:
+    branches: [main, master]
   pull_request:
 
+env:
+  RPC_URL: ${{ secrets.SWISSLEDGER_TESTNET_ADDRESS }}
+  CHAIN_ID: 222
+
 jobs:
-  test:
+  # ── fast checks (no chain needed) ──────────────────────────────────────
+  unit:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
 
-      - name: Setup Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: stable
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: stable }
 
-      - name: Install Node dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Generate local keyring
-        run: ./scripts/keygen
+      - name: Forge build + test
+        run: |
+          forge clean
+          node scripts/generate-build-info.mjs
+          forge build --evm-version london
+          forge test -vvv
 
-      - name: Run full test surface
-        run: make test-all
+      - name: Node client tests
+        run: node --test clients/merkle/*.test.mjs
+
+  # ── on-chain smoke (testnet deploy + verify) ───────────────────────────
+  smoke:
+    needs: unit
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SWISSLEDGER_TESTNET_ADDRESS != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: stable }
+
+      - run: npm ci
+      - run: node scripts/generate-build-info.mjs
+      - run: forge build --evm-version london
+
+      - name: Deploy to testnet
+        env:
+          PRIVATE_KEY: ${{ secrets.SWISSLEDGER_TESTNET_DEPLOY }}
+        run: |
+          forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
+            --rpc-url "$RPC_URL" \
+            --private-key "$PRIVATE_KEY" \
+            --legacy --gas-price 0 --chain "$CHAIN_ID" \
+            --broadcast --json > deploy.json
+          echo "addr=$(jq -r .deployedTo deploy.json)" >> "$GITHUB_OUTPUT"
+        id: deploy
+
+      - name: Smoke — set root and verify leaf
+        env:
+          PRIVATE_KEY: ${{ secrets.SWISSLEDGER_TESTNET_DEPLOY }}
+        run: |
+          ADDR="${{ steps.deploy.outputs.addr }}"
+
+          VALUES='["0x1111111111111111111111111111111111111111111111111111111111111111","0x2222222222222222222222222222222222222222222222222222222222222222"]'
+          ROOT=$(npm run --silent create-merkle-root -- "$VALUES")
+          LEAF=0x1111111111111111111111111111111111111111111111111111111111111111
+
+          cast send "$ADDR" "setActiveRoot(bytes32)" "$ROOT" \
+            --rpc-url "$RPC_URL" --private-key "$PRIVATE_KEY" \
+            --legacy --gas-price 0 --chain "$CHAIN_ID"
+
+          cast call "$ADDR" "contains(bytes32,bytes32[])(bool)" "$LEAF" "[]" \
+            --rpc-url "$RPC_URL" --chain "$CHAIN_ID" \
+            | grep -q true || { echo "FAIL: valid leaf rejected"; exit 1; }
+
+          WRONG=0x3333333333333333333333333333333333333333333333333333333333333333
+          cast call "$ADDR" "contains(bytes32,bytes32[])(bool)" "$WRONG" "[]" \
+            --rpc-url "$RPC_URL" --chain "$CHAIN_ID" \
+            | grep -q false || { echo "FAIL: wrong leaf accepted"; exit 1; }
+
+          echo "PASS: on-chain smoke test"
