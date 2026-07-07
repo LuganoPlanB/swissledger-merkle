@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.3.0...v1.3.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* use stock Foundry with safe secret checks in CI ([0819370](https://github.com/LuganoPlanB/swissledger-merkle/commit/0819370b5871fb19a3b38d520e08e9698b5a9b5d))
+
 # [1.3.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.2.0...v1.3.0) (2026-06-18)
 
 
