@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+FORGE="${FORGE:-${ROOT_DIR}/bin/swissledger-forge}"
+CAST="${CAST:-${ROOT_DIR}/bin/swissledger-cast}"
+ANVIL="${ANVIL:-${ROOT_DIR}/bin/swissledger-anvil}"
 RPC_PORT=${ANVIL_PORT:-8546}
 RPC_URL="http://127.0.0.1:${RPC_PORT}"
 PRIVATE_KEY=$(<"${ROOT_DIR}/evm-private-key.txt")
@@ -20,19 +23,19 @@ cleanup() {
 
 trap cleanup EXIT
 
-anvil --port "${RPC_PORT}" --chain-id 31337 >"${ANVIL_LOG}" 2>&1 &
+"${ANVIL}" --port "${RPC_PORT}" --chain-id 31337 >"${ANVIL_LOG}" 2>&1 &
 ANVIL_PID=$!
 
 for _ in $(seq 1 20); do
-  if cast block-number --rpc-url "${RPC_URL}" >/dev/null 2>&1; then
+  if "${CAST}" block-number --rpc-url "${RPC_URL}" >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
 
-cast block-number --rpc-url "${RPC_URL}" >/dev/null
+"${CAST}" block-number --rpc-url "${RPC_URL}" >/dev/null
 
-cast send \
+"${CAST}" send \
   "${ADDRESS}" \
   --value 10ether \
   --rpc-url "${RPC_URL}" \
@@ -68,7 +71,7 @@ node "${ROOT_DIR}/clients/merkle/merkle-proof.mjs" "${PROOF_REQUEST_JSON}" > "${
 LEAF_HASH=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(data.leafHash);' "${PROOF_JSON}")
 INVALID_LEAF_HASH=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(`0x${(BigInt(data.leafHash) + 1n).toString(16).padStart(64, "0")}`);' "${PROOF_JSON}")
 
-forge create \
+"${FORGE}" create \
   "${ROOT_DIR}/src/MerkleRootRegistry.sol:MerkleRootRegistry" \
   --rpc-url "${RPC_URL}" \
   --private-key "${PRIVATE_KEY}" \
@@ -77,21 +80,21 @@ forge create \
 
 CONTRACT_ADDRESS=$(node -e 'const fs=require("fs"); const data=JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.stdout.write(data.deployedTo);' "${DEPLOY_JSON}")
 
-cast send \
+"${CAST}" send \
   "${CONTRACT_ADDRESS}" \
   "setActiveRoot(bytes32)" \
   "${ROOT}" \
   --rpc-url "${RPC_URL}" \
   --private-key "${PRIVATE_KEY}" >/dev/null
 
-VALID_RESULT=$(cast call \
+VALID_RESULT=$("${CAST}" call \
   "${CONTRACT_ADDRESS}" \
   "containsLeafHash(bytes32,bytes32[])(bool)" \
   "${LEAF_HASH}" \
   "[]" \
   --rpc-url "${RPC_URL}")
 
-INVALID_RESULT=$(cast call \
+INVALID_RESULT=$("${CAST}" call \
   "${CONTRACT_ADDRESS}" \
   "containsLeafHash(bytes32,bytes32[])(bool)" \
   "${INVALID_LEAF_HASH}" \

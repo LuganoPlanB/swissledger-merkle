@@ -7,3 +7,4 @@ solc
 node_modules
 cache
 out
+bin/

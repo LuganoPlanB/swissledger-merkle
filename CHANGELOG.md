@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.3.1...v1.3.2) (2026-07-07)
+
+
+### Bug Fixes
+
+* smoke test uses single-leaf tree so empty proof is correct ([d2ac6fb](https://github.com/LuganoPlanB/swissledger-merkle/commit/d2ac6fbd290be70bd520c9f53126f6aaa3b68d62))
+
 ## [1.3.1](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.3.0...v1.3.1) (2026-07-07)
 
 
