@@ -10,7 +10,6 @@ env:
   CHAIN_ID: 222
 
 jobs:
-  # ── fast checks (no chain needed) ──────────────────────────────────────
   unit:
     runs-on: ubuntu-latest
     steps:
@@ -19,8 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
 
-      - uses: foundry-rs/foundry-toolchain@v1
-        with: { version: stable }
+      - uses: LuganoPlanB/swissledger-foundry/.github/actions/setup@main
 
       - run: npm ci
 
@@ -28,13 +26,12 @@ jobs:
         run: |
           forge clean
           node scripts/generate-build-info.mjs
-          forge build --evm-version london
+          forge build
           forge test -vvv
 
       - name: Node client tests
         run: node --test clients/merkle/*.test.mjs
 
-  # ── on-chain smoke (testnet deploy + verify) ───────────────────────────
   smoke:
     needs: unit
     runs-on: ubuntu-latest
@@ -45,12 +42,11 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
 
-      - uses: foundry-rs/foundry-toolchain@v1
-        with: { version: stable }
+      - uses: LuganoPlanB/swissledger-foundry/.github/actions/setup@main
 
       - run: npm ci
       - run: node scripts/generate-build-info.mjs
-      - run: forge build --evm-version london
+      - run: forge build
 
       - name: Deploy to testnet
         env:
