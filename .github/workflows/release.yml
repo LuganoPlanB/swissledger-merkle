@@ -21,7 +21,7 @@ jobs:
         with: { version: stable }
       - run: npm ci
       - run: node scripts/generate-build-info.mjs
-      - run: forge build --evm-version london
+      - run: forge build --evm-version istanbul
       - run: forge test -vvv
       - run: npx semantic-release
         env:

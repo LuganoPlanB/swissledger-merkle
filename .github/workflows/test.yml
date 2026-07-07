@@ -17,7 +17,7 @@ jobs:
         run: |
           forge clean
           node scripts/generate-build-info.mjs
-          forge build --evm-version london
+          forge build --evm-version istanbul
           forge test -vvv
       - name: Node client tests
         run: node --test clients/merkle/*.test.mjs
@@ -37,7 +37,7 @@ jobs:
         with: { version: stable }
       - run: npm ci
       - run: node scripts/generate-build-info.mjs
-      - run: forge build --evm-version london
+      - run: forge build --evm-version istanbul
 
       - name: Check secrets
         run: |

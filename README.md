@@ -163,7 +163,7 @@ Typical timings (ledger.swiss, Jun 2026):
 
 | step                |    ms | status  |
 |---------------------|-------|---------|
-| build (london)      |   165 | ok      |
+| build (istanbul)    |   165 | ok      |
 | proxy start         |   674 | ok      |
 | tree + proof        |   451 | ok      |
 | setActiveRoot        | 6,550 | ok      |

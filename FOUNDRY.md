@@ -90,50 +90,33 @@ The relevant code is in `alloy-json-rpc` or `alloy-transport`, in the
 
 ### Problem
 
-`forge build --evm-version london` ignores the CLI flag when
+`forge build --evm-version istanbul` ignores the CLI flag when
 `foundry.toml` sets `evm_version = "cancun"` in `[profile.default]`.
 
 ### Reproduction
 
 ```bash
 # foundry.toml has evm_version = "cancun"
-forge build --evm-version london
+forge build --evm-version istanbul
 forge inspect MerkleRootRegistry bytecode  # still has PUSH0 opcodes
 ```
 
-### Fix
+### Fix (applied in swissledger-forge)
 
 Ensure `--evm-version <VERSION>` on `forge build` takes precedence
-over `foundry.toml`.  This is the standard CLI override pattern.
+over `foundry.toml`.  With `evm_version = "istanbul"` in `foundry.toml`
+this is no longer needed — the default already matches the chain.
 
 ---
 
-## P1: `cast call` / `cast calldata` cannot parse non-empty `bytes32[]`
+## P1: `cast call` / `cast calldata` array parsing ✅ FIXED
 
-### Problem
-
-When passing a dynamic `bytes32[]` argument to `cast call` or `cast
-calldata`, the argument parser fails for any non-empty array.  An
-empty array `[]` works.
-
-### Reproduction
-
-```bash
-cast call 0x... "containsLeafHash(bytes32,bytes32[])(bool)" \
-  0xleafhash... \
-  "[0xdf02a603c991a0617e6daf13d208ef96890f7d59d3d8a3f73ae24234be6737]"
-```
-
-### Fix
-
-Fix the argument parser for dynamic arrays in the CLI argument
-handling layer (`cast` argument parsing → type coercion → ABI
-encoding).  The parser likely mishandles hex string length validation
-for elements inside a dynamic array.
+`swissledger-cast` now handles `bytes32[]` arguments natively — the
+parser bug that required manual calldata encoding is resolved.
 
 ---
 
-## P2: Fall back to 0 gas price on `eth_gasPrice` error
+## P2: Fall back to 0 gas price on `eth_gasPrice` error ✅ FIXED
 
 ### Problem
 

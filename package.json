@@ -16,13 +16,13 @@
     "release": "semantic-release"
   },
   "dependencies": {
+    "starknet": "^6.11.0"
+  },
+  "devDependencies": {
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/constants": "^5.7.0",
     "@ethersproject/keccak256": "^5.7.0",
-    "starknet": "^6.11.0"
-  },
-  "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/exec": "^7.1.0",
