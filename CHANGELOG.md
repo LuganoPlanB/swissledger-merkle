@@ -1,3 +1,16 @@
+# [1.4.0](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.3.2...v1.4.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* **keygen:** use forked swissledger-cast instead of system cast ([f772586](https://github.com/LuganoPlanB/swissledger-merkle/commit/f772586426c8b54622f07cfda87bd920bed29a54))
+* **proxy:** handle BrokenPipeError and add london profile ([ef7f4bc](https://github.com/LuganoPlanB/swissledger-merkle/commit/ef7f4bc314eb9f0d539828c51e2fbf0d15286494))
+
+
+### Features
+
+* add on-chain smoke test script for ledger.swiss ([18baf59](https://github.com/LuganoPlanB/swissledger-merkle/commit/18baf5931967ee2d8a89b4dfaab5a98c9a34771b))
+
 ## [1.3.2](https://github.com/LuganoPlanB/swissledger-merkle/compare/v1.3.1...v1.3.2) (2026-07-07)
 
 
