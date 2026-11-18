@@ -1,0 +1,86 @@
+name: test-zenroom
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  ZENROOM_URL: "https://github.com/dyne/Zenroom/releases/download/v5.38.1/zenroom"
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    env:
+      RPC_URL: http://127.0.0.1:8545
+      # This is a private key of a wallet. But since we're using anvil, it is public...
+      OWNER_KEY: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+      CHAIN_ID: 31337
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: stable }
+      - name: build contract
+        run: forge build
+      - name: Install Zenroom
+        run: |
+          # download zenroom
+          curl -fsSL "$ZENROOM_URL" -o zenroom
+          # make it executable
+          chmod +x zenroom
+          # save its path for the next steps
+          echo "ZENROOM=$PWD/zenroom" >> "$GITHUB_ENV"
+      - name: Start anvil
+        run: |
+          nohup anvil --silent > anvil.log 2>&1 &
+          until cast chain-id --rpc-url "$RPC_URL" >/dev/null 2>&1; do sleep 1; done
+
+      - name: deploy contract
+        run: |
+          forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
+            --rpc-url "$RPC_URL" --private-key "$OWNER_KEY" \
+            --broadcast --json > deploy.json
+          echo "addr=$(jq -r .deployedTo deploy.json)" >> "$GITHUB_OUTPUT"
+        id: deploy
+
+      - name: zenroom test
+        env:
+          CONTRACT: ${{ steps.deploy.outputs.addr }}
+          UPDATER_ADDR: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"
+        run: bash zenroom/run.sh
+
+  smoke:
+    needs: unit
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      RPC_URL: https://testnet-swiss-ledger-rpc.noku.io
+      OWNER_KEY: ${{ secrets.SWISSLEDGER_TESTNET_BEACUR }}
+      CHAIN_ID: 222
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with: { version: stable }
+      - name: build contract
+        run: forge build
+      - name: Install Zenroom
+        run: |
+          # download zenroom
+          curl -fsSL "$ZENROOM_URL" -o zenroom
+          # make it executable
+          chmod +x zenroom
+          # save its path for the next steps
+          echo "ZENROOM=$PWD/zenroom" >> "$GITHUB_ENV"
+      - name: deploy contract
+        run: |
+          forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
+            --rpc-url "$RPC_URL" --private-key "$OWNER_KEY" \
+            --legacy --gas-limit 10000000 \
+            --broadcast --json > deploy.json
+          echo "addr=$(jq -r .deployedTo deploy.json)" >> "$GITHUB_OUTPUT"
+        id: deploy
+      - name: zenroom test
+        env:
+          CONTRACT: ${{ steps.deploy.outputs.addr }}
+          UPDATER_ADDR: "0x90640C652c7F5d90f0Fb9E729Fe4400c52d4C67a"
+        run: bash zenroom/run.sh
+
