@@ -24,11 +24,12 @@ jobs:
       - name: Install Zenroom
         run: |
           # download zenroom
-          curl -fsSL "$ZENROOM_URL" -o zenroom
+          mkdir -p bin
+          curl -fsSL "$ZENROOM_URL" -o bin/zenroom
           # make it executable
-          chmod +x zenroom
+          chmod +x bin/zenroom
           # save its path for the next steps
-          echo "ZENROOM=$PWD/zenroom" >> "$GITHUB_ENV"
+          echo "ZENROOM=$PWD/bin/zenroom" >> "$GITHUB_ENV"
       - name: Start anvil
         run: |
           nohup anvil --silent > anvil.log 2>&1 &
@@ -65,11 +66,12 @@ jobs:
       - name: Install Zenroom
         run: |
           # download zenroom
-          curl -fsSL "$ZENROOM_URL" -o zenroom
+          mkdir -p bin
+          curl -fsSL "$ZENROOM_URL" -o bin/zenroom
           # make it executable
-          chmod +x zenroom
+          chmod +x bin/zenroom
           # save its path for the next steps
-          echo "ZENROOM=$PWD/zenroom" >> "$GITHUB_ENV"
+          echo "ZENROOM=$PWD/bin/zenroom" >> "$GITHUB_ENV"
       - name: deploy contract
         run: |
           forge create src/MerkleRootRegistry.sol:MerkleRootRegistry \
